@@ -10,7 +10,8 @@ Created on Mon Jul 18 21:38:43 2022
 # import numpy as np
 # import math
 # import random
-# import time
+import timeit
+
 # import copy
 # import matplotlib.pyplot as plt
 # import csv
@@ -84,4 +85,4 @@ def execute(C):
 
 C = [circuit.createCircuit("circuitdata-{}.csv".format(i), 10007) for i in range(1, 5)]
 
-# execute(C[0])
+execution_time = timeit.timeit(lambda: execute(C[0]), number=10000)
