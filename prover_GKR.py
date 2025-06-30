@@ -27,6 +27,8 @@ class Prover(Interactor):
     def output_layer_communication(self):
         """
         return the output layer function, which is the start of the GKR, claim about the output layer.
+
+        We don't consider the possibility of bad prover. So every message prover sends to Verifier is really from the circuit result.
         """
         return self.circ.get_W(0)
 

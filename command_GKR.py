@@ -28,13 +28,15 @@ def execute(C):
     k = C.get_k()
     d = C.get_depth()
     # initialize prover and verifier
+    # First step: Prover and Verifier agree on a circuit C. In this circuit, only gate type and wiring predicate is set. The value of the gates is not calculated. Only prover needs to do this calculation.
     prover_inst = P_GKR.Prover(C)
     verifier_inst = V_GKR.Verifier(C)
     # prover_output_communication is the first message the prover sends.
     # This is a dictionary of the output values, in dictionary form: {0,1}^{k[0]}->F_p
+    # In this step, P tells V the claimed output of the circuit.
     prover_output_communication = prover_inst.output_layer_communication()
-    # verifier runs ``output layer communication'' with input the dictionary
-    # that prover just sent. returns a random vector r_0 in F_p^{k[0]}
+    # In this step, verifier accept the claimed output and returns a random challenge.
+    # In more detail, Verifier runs ``output layer communication'' with input the dictionary that prover just sent. returns a random vector r_0 in F_p^{k[0]}
     random_vector_0 = verifier_inst.output_layer_communication(
         prover_output_communication
     )
@@ -48,11 +50,14 @@ def execute(C):
         prover_inst.get_evaluations_of_RV()[0],
     )
 
-    # iterate over the layers
+    # iterate over the layers(Every iteration is a round of GKR)
     for i in range(d):
+        # r is initialized to 0 because the first sumcheck needs no randomness.
         r = 0
+        # iterate over the gates(Every iteration is a round of sumcheck)
         for s in range(2 * k[i + 1] + 1):
-            # s spans from 0 to 2*k[i+1]. when s=0, the prover just passes the MLE evaluated at the random vector passed by verifier.
+            # s spans from 0 to 2*k[i+1].
+            # when s=0, the prover just passes the MLE evaluated at the random vector passed by verifier. This is evident from p34 of the book. Prover needs to first send the sum of binary input of f_i.
             # i means layer number, s means step number, r means random element.
             # when s=1, fixing the first variable, there is no random element. This coincides with what the partial_sumcheck_check returns at s=0, namely, 0.
             prover_msg = prover_inst.partial_sumcheck(i, s, r)

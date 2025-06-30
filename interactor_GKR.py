@@ -52,7 +52,7 @@ class Interactor:
 
         polynomials: a list of lists of ``polynomials''. more precisely, the ith
             element is a list of the (quadratic) polynomials that the prover
-            sends doing sumcheck on layer i. Here, a polynomial is given by a list
+            sends during sumcheck on layer i. Here, a polynomial is given by a list
             of integers of length 3 (they are quadratic): [a, b, c] corresponds to
             a + bx + cx^2. We know in every layer sumcheck, there will be a quadratic polynomial every time a variable is fixed. So polynomials[i] is a list containing all of the polys produced during the sumcheck protocol on layer i.
         lines: a list of ``lines''. more precisely, at the end of the layer i

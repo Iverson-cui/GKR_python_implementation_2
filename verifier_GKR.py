@@ -110,6 +110,7 @@ class Verifier(Interactor):
             self.append_element_SRE(i, new_random_element)
             return new_random_element
         elif 1 < s <= 2 * k[i + 1]:
+            # The reason to separate out the case s == 1 is that, in each round of sumcheck we need to compare MLE at 0 + MLE at 1 = last round value. Last round value is calculated when used. This means we have to obtain the random element and poly of last round every time. When s=1, there is no last round random element, and poly is just a value.
             r = self.get_sumcheck_random_element(i, s - 1)
             sum_new_poly_at_0_1 = (
                 SU.quadratic_evaluation(poly, 0, p)
@@ -217,6 +218,7 @@ class Verifier(Interactor):
         Wd = circ.get_W(d)
         RV_d = tuple(self.get_random_vector(d))
         last_claimed_value = self.get_claimed_value_at_end_of_layer(d - 1)
+        # We can now evaluate the MLE at the random vector since we know the input value.
         actual_value_at_RV = SU.eval_MLE(Wd, RV_d, k[d], p)
         assert last_claimed_value == actual_value_at_RV, "{} is not equal to {}".format(
             last_claimed_value, actual_value_at_RV
