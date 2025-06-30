@@ -243,7 +243,7 @@ class Circuit:
 
     def place_value(self, i, gate, val):
         """
-        place_value takes in a layer and a gate and inserts a value at that gate.
+        place_value takes in a layer and a gate and inserts a value at that gate. This change is done in-place.
         """
         # d = self.get_depth()
         # assert i >= 0 and i <= d, "layer has to be between 0 and d"
