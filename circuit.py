@@ -421,6 +421,16 @@ def createCircuit(fileName: str, p: int) -> Circuit:
             line[0]
         ), "the {}th line of the document does not start with {}".format(i, i)
         numGates = int(line[1])
+
+        # Add validation for non-input layer
+        expected_columns = (
+            2 + 3 * numGates
+        )  # For non-input layer: each gate needs 3 columns
+        if len(line) != expected_columns:
+            raise ValueError(
+                f"Line {i} claims {numGates} gates but has {(len(line)-2)/3} gates, {len(line)} columns, need {expected_columns}"
+            )
+
         layer = dict()
         for j in range(numGates):
             gateType = line[2 + 3 * j].strip()
@@ -443,6 +453,11 @@ def createCircuit(fileName: str, p: int) -> Circuit:
         ), "the {}th line of the document does not start with {}".format(i, i)
         numGates = int(line[1])
         layer = dict()
+        expected_columns = 2 + 2 * numGates  # For input layer
+        if len(line) != expected_columns:
+            raise ValueError(
+                f"Line {i} claims {numGates} gates but has {(len(line)-2)/2}"
+            )
         for j in range(numGates):
             gateType = line[2 + 2 * j].strip()
             assert gateType == "input", "On the last layer, only have input gates!"
