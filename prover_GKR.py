@@ -53,7 +53,7 @@ class Prover(Interactor):
     def sum_fi(self, i: int, s: int):
         """
         sum_fi
-        INPUTS: i (integer), s (step)
+        INPUTS: i (integer meaning the number of layers), s (step)
         OUTPUTS: a quadratic polynomial, in the form of a list, i.e. [a, b, c],
             which corresponds to a + bx + cx^2
 
@@ -105,6 +105,7 @@ class Prover(Interactor):
                 # 2 in 4.6.5, with appropriate indices changed). So we only take part of current_random_elements, because it's the final random vector, and we haven't gone that far.
                 # the point is we only need to sum over such tuples that agree with
                 # the last (however many) bits of a!!
+                # bc is separated into 3 parts, tuple of random_elements, x and tuple of a. The length of the tuple of random_elements keeps growing as the step goes up. x is assigned to 0, 1 and 2 later. tuple of a contains the binary bits combinations.
                 bc = (
                     tuple(current_random_elements[: s - 1])
                     + (x,)
@@ -112,13 +113,13 @@ class Prover(Interactor):
                 )
                 b = bc[: k[i + 1]]
                 c = bc[k[i + 1] :]
-
+                # the first k[i] bits of z are settled before the sumcheck.
                 z = tuple(self.get_random_vector(i)) + bc
                 W_iplus1 = circ.get_W(i + 1)
                 # Notice that the W_iplus1_at_b/c is evaluated using brute force. If there are n variables, then this means to aggregate 2^n terms.
                 # We can use Tormode method or Thaler method to speed this up.
-                W_iplus1_at_b = SU.eval_MLE(W_iplus1, b, k[i + 1], p)
-                W_iplus1_at_c = SU.eval_MLE(W_iplus1, c, k[i + 1], p)
+                W_iplus1_at_b = SU.DP_eval_MLE(W_iplus1, b, k[i + 1], p)
+                W_iplus1_at_c = SU.DP_eval_MLE(W_iplus1, c, k[i + 1], p)
                 gate_type = circ.get_type(i, gate)
                 # This is the Tormode method. Each gate only contribute to one term, so we can just iterate over the gates. This also reduce the need to evaluate add and mult.
                 if gate_type == "add":
