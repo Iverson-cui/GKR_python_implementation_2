@@ -271,7 +271,11 @@ def DP_eval_MLE(L: dict, r: tuple, N: int, p: int) -> int:
             temp.append((r[i]) * chi_values[j] % p)
         chi_values = temp
 
+    # Now chi_values is a list of length 2^N. It contains all of the values of chi evaluated at different x, starting from x=[000...0] to x=[111...1].
+    # You can check p32 of the book, in which there is a graph.
     for key in L:
+        # dec is the decimal representation of the key, which is a binary tuple. So if key in L is (1,0,1) then dec=5.
+        # After dec is evaluated, answer is updated by multiplying the value of chi and the value of dict.
         dec = 0
         for i in range(N):
             dec = dec + 2 ** (N - i - 1) * key[i]

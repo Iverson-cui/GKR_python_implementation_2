@@ -184,7 +184,7 @@ class Circuit:
         N = k[i] + 2 * k[i + 1]
         assert N == len(x), "length of vector is not correct"
         answer = 0
-        # When calculating MLE of add, we only need to iterate over the layer i gates, not layer i+2*layer i+1 gates. That's because each layer i gate contribute to only one term in the sum, which means add function itself is very sparse.
+        # When calculating MLE of add, we only need to iterate over the layer i gates, not layer i+2*layer i+1 gates. That's because each layer i gate contribute to only one term in the sum, which means tilde add function itself is very sparse.
         for gate in range(2 ** k[i]):
             if self.get_type(i, gate) == "add":
 
@@ -279,7 +279,9 @@ class Circuit:
                 len(info[1]) == 2
                 and 0 <= info[1][0] < 2 ** k[i + 1]
                 and 0 <= info[1][1] < 2 ** k[i + 1]
-            ), "there is a problem with the input gate numbering"
+            ), "there is a problem with the input gate numbering for layer {}, gate inputs are {}, but should be in range [0, {}]".format(
+                i, info[1], 2 ** k[i + 1] - 1
+            )
             assert len(info[2]) <= 1, "there are too many values!"
         gates.sort()
         assert gates == [

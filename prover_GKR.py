@@ -115,9 +115,12 @@ class Prover(Interactor):
 
                 z = tuple(self.get_random_vector(i)) + bc
                 W_iplus1 = circ.get_W(i + 1)
+                # Notice that the W_iplus1_at_b/c is evaluated using brute force. If there are n variables, then this means to aggregate 2^n terms.
+                # We can use Tormode method or Thaler method to speed this up.
                 W_iplus1_at_b = SU.eval_MLE(W_iplus1, b, k[i + 1], p)
                 W_iplus1_at_c = SU.eval_MLE(W_iplus1, c, k[i + 1], p)
                 gate_type = circ.get_type(i, gate)
+                # This is the Tormode method. Each gate only contribute to one term, so we can just iterate over the gates. This also reduce the need to evaluate add and mult.
                 if gate_type == "add":
                     poly_values[x] = (
                         poly_values[x]
@@ -167,7 +170,7 @@ class Prover(Interactor):
                     i, RV_i, new_evaluation
                 )
             )
-            return [new_evaluation, 0, 0]  # do I need to do this?? Probably...
+            return [new_evaluation, 0, 0]
 
         # from s==1, Prover has to send the partial sum of the W_i+1 variables. But until now no random element has been sent from verifier to prover, so we don't need to append the random_element to the SRE.
         elif s == 1:
