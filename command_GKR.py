@@ -116,7 +116,9 @@ def execute(C):
 
         if TIME_INFO:
             reduce_start_time = time.time()
-        new_random_vector = verifier_inst.reduce_two_to_one(i, end_of_sumcheck_poly)
+        new_random_vector = verifier_inst.reduce_two_to_one_without_verification(
+            i, end_of_sumcheck_poly
+        )
         if TIME_INFO:
             reduce_end_time = time.time()
             print(
@@ -150,5 +152,5 @@ def execute(C):
 # C = [circuit.createCircuit("circuitdata-{}.csv".format(i), 10007) for i in range(1, 5)]
 # Deep_C = circuit.createCircuit("deep_circuit-1.csv", 10007)
 test_circuit = circuit.createCircuit("./test_circuit/4_3dconv.csv", 10007)
-execution_time = timeit.timeit(lambda: execute(test_circuit), number=2)
-print("Execution time for test_circuit: ", execution_time / 2, "seconds")
+execution_time = timeit.timeit(lambda: execute(test_circuit), number=3)
+print("Execution time for test_circuit: ", execution_time / 3, "seconds")
