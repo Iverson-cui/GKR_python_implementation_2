@@ -145,10 +145,10 @@ class Verifier(Interactor):
         INPUTS: i (integer), poly (list)
         OUTPUTS: new_random_vector (tuple)
         At the end of the sumcheck protocol for layer i, we have just received a
-        polynomial, poly, that the prover claims to be \tilde{W}_{i+1} restricted to the line
-        between bstar and cstar. More precisely:
+        polynomial, poly, that the prover claims to be \tilde{W}_{i+1} restricted to the line between bstar and cstar. More precisely:
             poly(0) is claimed to be \tilde{W}_{i+1}(bstar) and
             poly(1) is claimed to be \tilde{W}_{i+1}(cstar)
+            poly is a univariate polynomial of degree at most k[i + 1].
         We may use this to construct a "current" claim about what f^i_{RV_i} is at
         (bstar, cstar). There is a second, "old" claimed value: the last quadratic
         polynomial sent, evaluated at the last random element the verifier picked.
@@ -160,7 +160,9 @@ class Verifier(Interactor):
         k = self.get_k()
         circ = self.get_circ()
         vals = [SU.polynomial_evaluation(poly, i, p) for i in range(2)]
+        # SRE_layer_i is the list of random elements in layer i.
         SRE_layer_i = self.get_layer_i_sumcheck_random_elements(i)
+        # bstar is the first half, cstar is the second half.
         bstar = tuple(SRE_layer_i[: k[i + 1]])
         cstar = tuple(SRE_layer_i[k[i + 1] :])
         RV_i = tuple(self.get_random_vector(i))

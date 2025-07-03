@@ -153,10 +153,8 @@ class Interactor:
 
     def compute_line(self, i):
         """
-        at the end of the layer i sumcheck protocol, the verifier is left to ``compute'' or verify two
-        # MLEs: the two input vectors are the first and second half respectively of
-        # sumcheck_random_elements for layer i. Call these two elements b and c.
-        # compute_line returns a function F_p-->F_p^{k[i+1]} that is a line in between these two points.
+        at the end of the layer i sumcheck protocol, the verifier is left to ``compute'' or verify two MLEs: W_i+1(b) and W_i+1(c), where the two input vectors are the first and second half respectively of sumcheck_random_elements for layer i and is already accessible. Call these two elements b and c.
+        compute_line returns a function F_p-->F_p^{k[i+1]} that is a line in between these two points.
         """
         k = self.get_k()
         p = self.get_p()
@@ -169,6 +167,7 @@ class Interactor:
                 instead, {} is not {}".format(
             len(layer_i_random_elements), 2 * k[i + 1]
         )
+        # b and c are the input to 2 W_i+1 evaluations
         b = layer_i_random_elements[: k[i + 1]]
         c = layer_i_random_elements[k[i + 1] :]
 

@@ -208,12 +208,13 @@ class Prover(Interactor):
         k = self.get_k()
 
         self.append_element_SRE(i, random_element)
+        # line is a function that takes random challenge as input and returns the value of the line passing through b and c evaluated at that point.
         line = self.compute_line(i)
         W_iplus1 = self.circ.get_W(i + 1)
         # The polynomial sent, W_i+1(l) is at most k_i+1
         poly = SU.polynomial_interpolation(
             [
-                [N, SU.eval_MLE(W_iplus1, line(N), k[i + 1], p)]
+                [N, SU.DP_eval_MLE(W_iplus1, line(N), k[i + 1], p)]
                 for N in range(k[i + 1] + 1)
             ],
             k[i + 1],
