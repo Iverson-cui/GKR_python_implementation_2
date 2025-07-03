@@ -178,7 +178,7 @@ class Circuit:
         # NOTE AS OF JULY 23: this is probably not exactly necessary, or rather
         # it needs to be modified. Just as in MatMul, it is
         """
-        add_i = self.get_add_and_mult(i)[0]
+        # add_i = self.get_add_and_mult(i)[0]
         k = self.get_k()
         p = self.get_p()
         N = k[i] + 2 * k[i + 1]
@@ -204,7 +204,7 @@ class Circuit:
         This function is simialr to eval_MLE_add, but it computes the MLE of the multiplication gates.
         """
 
-        add_i = self.get_add_and_mult(i)[1]
+        # mult_i = self.get_add_and_mult(i)[1]
         k = self.get_k()
         p = self.get_p()
         N = k[i] + 2 * k[i + 1]
