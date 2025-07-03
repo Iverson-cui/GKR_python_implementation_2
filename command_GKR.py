@@ -116,9 +116,7 @@ def execute(C):
 
         if TIME_INFO:
             reduce_start_time = time.time()
-        new_random_vector = verifier_inst.reduce_two_to_one_without_verification(
-            i, end_of_sumcheck_poly
-        )
+        new_random_vector = verifier_inst.reduce_two_to_one(i, end_of_sumcheck_poly)
         if TIME_INFO:
             reduce_end_time = time.time()
             print(

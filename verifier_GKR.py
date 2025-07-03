@@ -15,9 +15,11 @@ import numpy as np
 
 import sumcheck_util as SU
 import circuit
+import time
 from interactor_GKR import Interactor
 
 DEBUG_INFO = False
+TIME_INFO = True
 
 
 class Verifier(Interactor):
@@ -158,18 +160,38 @@ class Verifier(Interactor):
         a new_random_vector via the line function, and binds the Prover to poly(e).
         We have therefore reduced ourselves to a statement about \tilde{W}_{i+1}.
         """
+        # phase 1: verification
         p = self.get_p()
         k = self.get_k()
         circ = self.get_circ()
+        # The verifier needs to get the poly evaluated at 0 and 1 cause they are the claimed value of the prover
+        if TIME_INFO:
+            poly_start_time = time.time()
         vals = [SU.polynomial_evaluation(poly, i, p) for i in range(2)]
+        if TIME_INFO:
+            poly_end_time = time.time()
+            print(
+                "Time for layer {} poly evaluation: {}".format(
+                    i, poly_end_time - poly_start_time
+                )
+            )
         SRE_layer_i = self.get_layer_i_sumcheck_random_elements(i)
         bstar = tuple(SRE_layer_i[: k[i + 1]])
         cstar = tuple(SRE_layer_i[k[i + 1] :])
         RV_i = tuple(self.get_random_vector(i))
         last_poly = self.get_specific_polynomial(i, 2 * k[i + 1])
+        # To verify the claim, the verifier needs to know the values of add and mult.
+        if TIME_INFO:
+            add_mult_start_time = time.time()
         add_bstar_cstar = circ.eval_MLE_add(i, RV_i + bstar + cstar)
         mult_bstar_cstar = circ.eval_MLE_mult(i, RV_i + bstar + cstar)
-
+        if TIME_INFO:
+            add_mult_end_time = time.time()
+            print(
+                "Time for layer {} add and mult evaluation: {}".format(
+                    i, add_mult_end_time - add_mult_start_time
+                )
+            )
         # compute what the prover claims f_i(SRE_layer_i) is based on
         # what the prover claims W_{i+1}(bstar) and W_{i+1}(cstar) are.
         # (this is via the polynomial that the prover sends!!)
@@ -178,7 +200,17 @@ class Verifier(Interactor):
             add_bstar_cstar * (vals[0] + vals[1])
             + mult_bstar_cstar * (vals[0] * vals[1])
         ) % p
+        # The verifier needs to get the old claimed value to compare it with the new one.
+        if TIME_INFO:
+            old_claimed_value_start_time = time.time()
         old_claimed_value_of_fi = SU.quadratic_evaluation(last_poly, SRE_layer_i[-1], p)
+        if TIME_INFO:
+            old_claimed_value_end_time = time.time()
+            print(
+                "Time for layer {} old claimed value evaluation: {}".format(
+                    i, old_claimed_value_end_time - old_claimed_value_start_time
+                )
+            )
         assert (
             current_claimed_value_of_fi == old_claimed_value_of_fi
         ), "The first check at the end of sumcheck for layer {} failed:\
@@ -197,6 +229,8 @@ class Verifier(Interactor):
                     current_claimed_value_of_fi,
                 )
             )
+
+        # Phase 2: get the next layer claim
         line = self.get_line(i)
         final_random_element_in_layer = np.random.randint(0, p)
         new_random_vector = line(final_random_element_in_layer)

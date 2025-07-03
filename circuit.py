@@ -140,6 +140,7 @@ class Circuit:
         # and spit out either 0 or 1. It spits out 1 if it is an add gate with the right inputs
         # else it spits out zero.
 
+        # Maybe there is no need to iterrate through all of the input, just iterate and keep the add gates and mult gates can do.
         for gate in range(2**k_i):
             for a in range(2**k_iplus1):
                 for b in range(2**k_iplus1):
@@ -178,7 +179,7 @@ class Circuit:
         # NOTE AS OF JULY 23: this is probably not exactly necessary, or rather
         # it needs to be modified. Just as in MatMul, it is
         """
-        add_i = self.get_add_and_mult(i)[0]
+        # add_i = self.get_add_and_mult(i)[0]
         k = self.get_k()
         p = self.get_p()
         N = k[i] + 2 * k[i + 1]
@@ -204,7 +205,7 @@ class Circuit:
         This function is simialr to eval_MLE_add, but it computes the MLE of the multiplication gates.
         """
 
-        add_i = self.get_add_and_mult(i)[1]
+        # mult_i = self.get_add_and_mult(i)[1]
         k = self.get_k()
         p = self.get_p()
         N = k[i] + 2 * k[i + 1]
