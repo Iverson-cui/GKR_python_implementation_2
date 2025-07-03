@@ -281,3 +281,53 @@ def DP_eval_MLE(L: dict, r: tuple, N: int, p: int) -> int:
             dec = dec + 2 ** (N - i - 1) * key[i]
         answer = (answer + L[key] * chi_values[dec]) % p
     return answer
+
+
+def tuple_to_int(binary_tuple):
+    """
+    Input is a binary tuple like (1, 0, 1, 0) and output is the integer representation of that tuple.
+
+    This function has passed tests.
+    """
+    result = 0
+    for i, bit in enumerate(binary_tuple):
+        result += bit * (2 ** (len(binary_tuple) - 1 - i))
+    return result
+
+
+def Cormode_eval_W(
+    W_binary: dict,
+    input_so_far: tuple,
+    step: int,
+    num_var: int,
+    prime: int,
+):
+    """
+    This function does the same thing as eval_MLE, but it's the special version used in sumcheck situations. This function is based on Cormode's method.
+
+    We assume the W_i+1 we are about to evaluate has part of their variables binary and the rest in finite field, since in sumcheck, not all W_i+1 are in this case. Other cases including full bianry and full finite field are handled in the sum_fi function.
+
+    INPUTS: W_binary keeps the value of W_i+1 in binary input and is of length 2^N. It's a dictionary that has tuples as its keys like (1,0,0,1). step is the index of variable being fixed, num_var is the number of variables of W_binary(Basically = k[i+1]). prime is the prime number of the circuit. Input is the first s variables in this step.
+
+    OUTPUT: a list of length 2^{k[i+1]-s} that contains the evaluations of MLE W_i+1.
+
+    There are in total k[i+1] variables in W_i+1, the first s variables are finite field elements and the rest are binary.
+    """
+    assert len(W_binary) == 2**num_var, "W_binary must be of length 2^N"
+    assert len(input_so_far) == step, "input must be of length s"
+    # s-1 variables are random challenge elements, s-th variable is 0/1/2
+    # current_random_elements holds the first s-1 random elements.
+    # current_random_elements = self.get_layer_i_sumcheck_random_elements(layer)
+
+    # 2 ** (num_var - step) is the number of variables left to be fixed, which is also the number of binary variables.
+    result = [0] * (2 ** (num_var - step))
+    # label is the gate label like (1,0,0,1), value is the value of W_i+1 at that label.
+    for label, value in W_binary.items():
+        class_index = tuple_to_int(label[step:])
+        # chi want 2 tuples. First is the tuple of the gate label, which is in variable label. second is the tuple consisting of s bit input and num_var - s bit gate label.
+        # Or we can think of it like this: first is the former s bits of the gate label, second is the input.
+        chi_value = chi(label[:step], input_so_far, step, prime)
+        # update the corresponding class of the result.
+        result[class_index] = (result[class_index] + chi_value * value) % prime
+    assert len(result) == 2 ** (num_var - step), "result must be of length 2^{k[i+1]-s}"
+    return result

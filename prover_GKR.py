@@ -116,12 +116,39 @@ class Prover(Interactor):
                 # the first k[i] bits of z are settled before the sumcheck.
                 z = tuple(self.get_random_vector(i)) + bc
                 W_iplus1 = circ.get_W(i + 1)
-                # Notice that the W_iplus1_at_b/c is evaluated using brute force. If there are n variables, then this means to aggregate 2^n terms.
                 # We can use Tormode method or Thaler method to speed this up.
-                W_iplus1_at_b = SU.DP_eval_MLE(W_iplus1, b, k[i + 1], p)
-                W_iplus1_at_c = SU.DP_eval_MLE(W_iplus1, c, k[i + 1], p)
+                # Depending on which step we are in, all of the s cases can be separated into four part. 1. 1<=s<k[i+1], where b is half binary and c is full binary. 2. s=k[i+1], where b is full FFE and c is full binary. 3. k[i+1]<s<2*k[i+1], where b is full FFE and c is half binary. 4. s=2*k[i+1], where b is full FFE and c is full FFE.
+                # the reason we do this is that when input to W_i+1 is in different categories, ways to evaluate it are different.
+                # No matter in which case, we all get poly_values[x] filled
                 gate_type = circ.get_type(i, gate)
-                # This is the Tormode method. Each gate only contribute to one term, so we can just iterate over the gates. This also reduce the need to evaluate add and mult.
+                if s < k[i + 1]:
+                    # b: Cormode c: all binary, directly retrieve
+                    Cormode_b = SU.Cormode_eval_W(W_iplus1, b[:s], s, k[i + 1], p)
+                    W_iplus1_at_b = Cormode_b[SU.tuple_to_int(b[s:])]
+                    W_iplus1_at_c = W_iplus1[c]
+
+                elif s == k[i + 1]:
+                    # b: all FFE c: all binary, directly retrieve
+                    W_iplus1_at_b = SU.DP_eval_MLE(W_iplus1, b, k[i + 1], p)
+                    W_iplus1_at_c = W_iplus1[c]
+
+                elif k[i + 1] < s < 2 * k[i + 1]:
+                    # b: all FFE c: Cormode, directly retrieve
+                    W_iplus1_at_b = SU.DP_eval_MLE(W_iplus1, b, k[i + 1], p)
+                    Cormode_c = SU.Cormode_eval_W(
+                        W_iplus1, c[: s - k[i + 1]], s - k[i + 1], k[i + 1], p
+                    )
+                    W_iplus1_at_c = Cormode_c[SU.tuple_to_int(c[s - k[i + 1] :])]
+
+                elif s == 2 * k[i + 1]:
+                    # b: all FFE c: all FFE, directly retrieve
+                    W_iplus1_at_b = SU.DP_eval_MLE(W_iplus1, b, k[i + 1], p)
+                    W_iplus1_at_c = SU.DP_eval_MLE(W_iplus1, c, k[i + 1], p)
+                else:
+                    raise ValueError(
+                        "s must be between 1 and 2*k[i+1], but got {}".format(s)
+                    )
+
                 if gate_type == "add":
                     poly_values[x] = (
                         poly_values[x]
@@ -132,6 +159,20 @@ class Prover(Interactor):
                         poly_values[x]
                         + SU.chi(a, z, N, p) * (W_iplus1_at_b * W_iplus1_at_c)
                     ) % p
+                # W_iplus1_at_b = SU.DP_eval_MLE(W_iplus1, b, k[i + 1], p)
+                # W_iplus1_at_c = SU.DP_eval_MLE(W_iplus1, c, k[i + 1], p)
+                # gate_type = circ.get_type(i, gate)
+                # This is the Tormode method. Each gate only contribute to one term, so we can just iterate over the gates. This also reduce the need to evaluate add and mult.
+                # if gate_type == "add":
+                #     poly_values[x] = (
+                #         poly_values[x]
+                #         + SU.chi(a, z, N, p) * (W_iplus1_at_b + W_iplus1_at_c)
+                #     ) % p
+                # elif gate_type == "mult":
+                #     poly_values[x] = (
+                #         poly_values[x]
+                #         + SU.chi(a, z, N, p) * (W_iplus1_at_b * W_iplus1_at_c)
+                #     ) % p
         poly = SU.quadratic_interpolate(poly_values, p)
         return poly
 

@@ -1,2 +1,4 @@
 output.csv
 example*.csv
+*.pyc
+__pycache__/
