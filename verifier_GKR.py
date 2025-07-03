@@ -207,6 +207,23 @@ class Verifier(Interactor):
 
         return new_random_vector
 
+    def reduce_two_to_one_without_verification(self, i: int, poly: list):
+        """
+        With the help of time test we know that verifier.reduce_two_to_one is the most time consuming part of the GKR protocol.
+        We try to dig out why. This function I remove the verification part of reduce_two_to_one. To see if the time is reduced.
+        If you want to use it in the command_GKR.py, you have to change where reduce_two_to_one to this function, and other parts of the code goes as usual.
+        """
+        p = self.get_p()
+        line = self.get_line(i)
+        final_random_element_in_layer = np.random.randint(0, p)
+        new_random_vector = line(final_random_element_in_layer)
+        self.append_RV(new_random_vector)
+        self.append_claimed_values_at_end_of_layer(
+            SU.polynomial_evaluation(poly, final_random_element_in_layer, p)
+        )
+
+        return new_random_vector
+
     def final_verifier_check(self):
         """
         final_verifier_check
