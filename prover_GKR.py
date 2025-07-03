@@ -12,6 +12,8 @@ from interactor_GKR import Interactor
 import sumcheck_util as SU
 import circuit
 
+DEBUG_INFO = False
+
 
 class Prover(Interactor):
     """
@@ -207,11 +209,12 @@ class Prover(Interactor):
         # (NOTE: no sum is required.)
         if s == 0:
             new_evaluation = self.get_evaluation_of_RV(i)
-            print(
-                "The multi-linear extension of W_{} at {} is {}".format(
-                    i, RV_i, new_evaluation
+            if DEBUG_INFO:
+                print(
+                    "The multi-linear extension of W_{} at {} is {}".format(
+                        i, RV_i, new_evaluation
+                    )
                 )
-            )
             return [new_evaluation, 0, 0]
 
         # from s==1, Prover has to send the partial sum of the W_i+1 variables. But until now no random element has been sent from verifier to prover, so we don't need to append the random_element to the SRE.

@@ -17,6 +17,8 @@ import sumcheck_util as SU
 import circuit
 from interactor_GKR import Interactor
 
+DEBUG_INFO = False
+
 
 class Verifier(Interactor):
     """
@@ -185,16 +187,16 @@ class Verifier(Interactor):
                 {}!={}".format(
             i, current_claimed_value_of_fi, old_claimed_value_of_fi
         )
-
-        print(
-            "The two claimed values of f^{} (with random vector {}) at {} agree: {} and {}".format(
-                i,
-                self.get_random_vector(i),
-                SRE_layer_i,
-                old_claimed_value_of_fi,
-                current_claimed_value_of_fi,
+        if DEBUG_INFO:
+            print(
+                "The two claimed values of f^{} (with random vector {}) at {} agree: {} and {}".format(
+                    i,
+                    self.get_random_vector(i),
+                    SRE_layer_i,
+                    old_claimed_value_of_fi,
+                    current_claimed_value_of_fi,
+                )
             )
-        )
         line = self.get_line(i)
         final_random_element_in_layer = np.random.randint(0, p)
         new_random_vector = line(final_random_element_in_layer)
