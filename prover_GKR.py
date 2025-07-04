@@ -86,11 +86,55 @@ class Prover(Interactor):
             0,
         ]  # initialize the values of my poly at the inputs 0, 1, 2
         #        Li = circ.get_layer(i)
-        N = k[i] + 2 * k[i + 1]
+        # N = k[i] + 2 * k[i + 1]
         # the following is the main content of the partial boolean hypercube sum
         # the goal is to compute poly_values. We use a fast evaluation trick:
         # involving summing over the gates. (This is explained in 4.6.5, method 2,
         # of Thaler's book as of 09/04/2022.)
+
+        # We can use Tormode method or Thaler method to speed this up.
+        # Depending on which step we are in, all of the s cases can be separated into four part. 1. 1<=s<k[i+1], where b is half binary and c is full binary. 2. s=k[i+1], where b is full FFE and c is full binary. 3. k[i+1]<s<2*k[i+1], where b is full FFE and c is half binary. 4. s=2*k[i+1], where b is full FFE and c is full FFE.
+        # the reason we do this is that when input to W_i+1 is in different categories, ways to evaluate it are different.
+        current_random_elements = self.get_layer_i_sumcheck_random_elements(i)
+        # bc = (r_0, ..., r_{s-2}, {0/1/2}, b_{s},..b_{k[i]}-1) (as in Method
+        # 2 in 4.6.5, with appropriate indices changed). So we only take part of current_random_elements, because it's the final random vector, and we haven't gone that far.
+        # the point is we only need to sum over such tuples that agree with
+        # the last (however many) bits of a!!
+        # bc is separated into 3 parts, tuple of random_elements, x and tuple of a. The length of the tuple of random_elements keeps growing as the step goes up. x is assigned to 0, 1 and 2 later. tuple of a contains the binary bits combinations.
+
+        # bc_partial is the first s-1 bits of random elements. It needs to append 0/1/2.
+        bc_partial = tuple(current_random_elements[: s - 1])
+        # bc = (
+        #     tuple(current_random_elements[: s - 1])
+        #     + (x,)
+        #     + tuple(a[-(2 * (k[i + 1]) - s) :])
+        # )
+        # b = bc[: k[i + 1]]
+        # c = bc[k[i + 1] :]
+        # the first k[i] bits of z are settled before the sumcheck.
+        # z = tuple(self.get_random_vector(i)) + bc
+        # W_iplus1 is a dictionary that takes in k[i+1] bits.
+        W_iplus1 = circ.get_W(i + 1)
+        if s < k[i + 1]:
+            # b: Cormode c: all binary, directly retrieve
+            Cormode_b_0 = SU.Cormode_eval_W(W_iplus1, bc_partial + (0,), s, k[i + 1], p)
+            Cormode_b_1 = SU.Cormode_eval_W(W_iplus1, bc_partial + (1,), s, k[i + 1], p)
+            Cormode_b_2 = SU.Cormode_eval_W(W_iplus1, bc_partial + (2,), s, k[i + 1], p)
+        elif k[i + 1] < s < 2 * k[i + 1]:
+            partial_input_to_c_0 = bc_partial[k[i + 1] : s - 1] + (0,)
+            partial_input_to_c_1 = bc_partial[k[i + 1] : s - 1] + (1,)
+            partial_input_to_c_2 = bc_partial[k[i + 1] : s - 1] + (2,)
+            Cormode_c_0 = SU.Cormode_eval_W(
+                W_iplus1, partial_input_to_c_0, s - k[i + 1], k[i + 1], p
+            )
+            Cormode_c_1 = SU.Cormode_eval_W(
+                W_iplus1, partial_input_to_c_1, s - k[i + 1], k[i + 1], p
+            )
+            Cormode_c_2 = SU.Cormode_eval_W(
+                W_iplus1, partial_input_to_c_2, s - k[i + 1], k[i + 1], p
+            )
+
+        # The Cormode evaluation should be done before going into each specific gate.
         for gate in range(2 ** k[i]):
             gate_inputs = circ.get_inputs(i, gate)
             # a is a boolean string in {0,1}^k[i] \times {0,1}^{2*k[i+1]}
@@ -102,51 +146,84 @@ class Prover(Interactor):
                 + SU.int_to_bin(gate_inputs[1], k[i + 1])
             )
             for x in range(3):
-                current_random_elements = self.get_layer_i_sumcheck_random_elements(i)
-                # bc = (r_0, ..., r_{s-2}, {0/1/2}, b_{s},..b_{k[i]}-1) (as in Method
-                # 2 in 4.6.5, with appropriate indices changed). So we only take part of current_random_elements, because it's the final random vector, and we haven't gone that far.
-                # the point is we only need to sum over such tuples that agree with
-                # the last (however many) bits of a!!
-                # bc is separated into 3 parts, tuple of random_elements, x and tuple of a. The length of the tuple of random_elements keeps growing as the step goes up. x is assigned to 0, 1 and 2 later. tuple of a contains the binary bits combinations.
-                bc = (
-                    tuple(current_random_elements[: s - 1])
-                    + (x,)
-                    + tuple(a[-(2 * (k[i + 1]) - s) :])
-                )
-                b = bc[: k[i + 1]]
-                c = bc[k[i + 1] :]
-                # the first k[i] bits of z are settled before the sumcheck.
-                z = tuple(self.get_random_vector(i)) + bc
-                W_iplus1 = circ.get_W(i + 1)
-                # We can use Tormode method or Thaler method to speed this up.
-                # Depending on which step we are in, all of the s cases can be separated into four part. 1. 1<=s<k[i+1], where b is half binary and c is full binary. 2. s=k[i+1], where b is full FFE and c is full binary. 3. k[i+1]<s<2*k[i+1], where b is full FFE and c is half binary. 4. s=2*k[i+1], where b is full FFE and c is full FFE.
-                # the reason we do this is that when input to W_i+1 is in different categories, ways to evaluate it are different.
+
                 # No matter in which case, we all get poly_values[x] filled
                 gate_type = circ.get_type(i, gate)
                 if s < k[i + 1]:
                     # b: Cormode c: all binary, directly retrieve
-                    Cormode_b = SU.Cormode_eval_W(W_iplus1, b[:s], s, k[i + 1], p)
-                    W_iplus1_at_b = Cormode_b[SU.tuple_to_int(b[s:])]
-                    W_iplus1_at_c = W_iplus1[c]
+                    if x == 0:
+                        W_iplus1_at_b = Cormode_b_0[
+                            SU.tuple_to_int(a[k[i] + s : k[i] + k[i + 1]])
+                        ]
+                    elif x == 1:
+                        W_iplus1_at_b = Cormode_b_1[
+                            SU.tuple_to_int(a[k[i] + s : k[i] + k[i + 1]])
+                        ]
+                    elif x == 2:
+                        W_iplus1_at_b = Cormode_b_2[
+                            SU.tuple_to_int(a[k[i] + s : k[i] + k[i + 1]])
+                        ]
+                    else:
+                        raise ValueError("x must be 0, 1 or 2, but got {}".format(x))
+
+                    W_iplus1_at_c = W_iplus1[a[k[i] + k[i + 1] :]]
 
                 elif s == k[i + 1]:
                     # b: all FFE c: all binary, directly retrieve
-                    W_iplus1_at_b = SU.DP_eval_MLE(W_iplus1, b, k[i + 1], p)
-                    W_iplus1_at_c = W_iplus1[c]
+                    if x == 0:
+                        W_iplus1_at_b = SU.DP_eval_MLE(
+                            W_iplus1, bc_partial + (0,), k[i + 1], p
+                        )
+                    elif x == 1:
+                        W_iplus1_at_b = SU.DP_eval_MLE(
+                            W_iplus1, bc_partial + (1,), k[i + 1], p
+                        )
+                    elif x == 2:
+                        W_iplus1_at_b = SU.DP_eval_MLE(
+                            W_iplus1, bc_partial + (2,), k[i + 1], p
+                        )
+                    else:
+                        raise ValueError("x must be 0, 1 or 2, but got {}".format(x))
+
+                    W_iplus1_at_c = W_iplus1[a[k[i] + k[i + 1] :]]
 
                 elif k[i + 1] < s < 2 * k[i + 1]:
                     # b: all FFE c: Cormode, directly retrieve
-                    W_iplus1_at_b = SU.DP_eval_MLE(W_iplus1, b, k[i + 1], p)
-                    Cormode_c = SU.Cormode_eval_W(
-                        W_iplus1, c[: s - k[i + 1]], s - k[i + 1], k[i + 1], p
+                    W_iplus1_at_b = SU.DP_eval_MLE(
+                        W_iplus1, bc_partial[: k[i + 1]], k[i + 1], p
                     )
-                    W_iplus1_at_c = Cormode_c[SU.tuple_to_int(c[s - k[i + 1] :])]
+
+                    if x == 0:
+                        W_iplus1_at_c = Cormode_c_0[SU.tuple_to_int(a[k[i] + s :])]
+                    elif x == 1:
+                        W_iplus1_at_c = Cormode_c_1[SU.tuple_to_int(a[k[i] + s :])]
+                    elif x == 2:
+                        W_iplus1_at_c = Cormode_c_2[SU.tuple_to_int(a[k[i] + s :])]
+                    else:
+                        raise ValueError("x must be 0, 1 or 2, but got {}".format(x))
 
                 elif s == 2 * k[i + 1]:
-                    # b: all FFE c: all FFE, directly retrieve
-                    W_iplus1_at_b = SU.DP_eval_MLE(W_iplus1, b, k[i + 1], p)
-                    W_iplus1_at_c = SU.DP_eval_MLE(W_iplus1, c, k[i + 1], p)
+                    W_iplus1_at_b = SU.DP_eval_MLE(
+                        W_iplus1, bc_partial[: k[i + 1]], k[i + 1], p
+                    )
+
+                    if x == 0:
+                        W_iplus1_at_c = SU.DP_eval_MLE(
+                            W_iplus1, bc_partial[k[i + 1] :] + (0,), k[i + 1], p
+                        )
+                    elif x == 1:
+                        W_iplus1_at_c = SU.DP_eval_MLE(
+                            W_iplus1, bc_partial[k[i + 1] :] + (1,), k[i + 1], p
+                        )
+                    elif x == 2:
+                        W_iplus1_at_c = SU.DP_eval_MLE(
+                            W_iplus1, bc_partial[k[i + 1] :] + (2,), k[i + 1], p
+                        )
+                    else:
+                        raise ValueError("x must be 0, 1 or 2, but got {}".format(x))
                 else:
+                    W_iplus1_at_b = 0
+                    W_iplus1_at_c = 0
                     raise ValueError(
                         "s must be between 1 and 2*k[i+1], but got {}".format(s)
                     )
@@ -154,12 +231,24 @@ class Prover(Interactor):
                 if gate_type == "add":
                     poly_values[x] = (
                         poly_values[x]
-                        + SU.chi(a, z, N, p) * (W_iplus1_at_b + W_iplus1_at_c)
+                        + SU.chi(
+                            a[: k[i] + s],
+                            tuple(self.get_random_vector(i)) + bc_partial + (x,),
+                            k[i] + s,
+                            p,
+                        )
+                        * (W_iplus1_at_b + W_iplus1_at_c)
                     ) % p
                 elif gate_type == "mult":
                     poly_values[x] = (
                         poly_values[x]
-                        + SU.chi(a, z, N, p) * (W_iplus1_at_b * W_iplus1_at_c)
+                        + SU.chi(
+                            a[: k[i] + s],
+                            tuple(self.get_random_vector(i)) + bc_partial + (x,),
+                            k[i] + s,
+                            p,
+                        )
+                        * (W_iplus1_at_b * W_iplus1_at_c)
                     ) % p
                 # W_iplus1_at_b = SU.DP_eval_MLE(W_iplus1, b, k[i + 1], p)
                 # W_iplus1_at_c = SU.DP_eval_MLE(W_iplus1, c, k[i + 1], p)

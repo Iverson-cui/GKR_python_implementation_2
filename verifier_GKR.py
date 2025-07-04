@@ -125,8 +125,8 @@ class Verifier(Interactor):
             )
             assert (
                 sum_new_poly_at_0_1 == old_value % p
-            ), "the check failed at step {}, {} is not equal to {}".format(
-                s, sum_new_poly_at_0_1, old_value
+            ), "the check failed at layer {} step {}, {} is not equal to {}. k[i]={},k[i+1]={}".format(
+                i, s, sum_new_poly_at_0_1, old_value, k[i], k[i + 1]
             )
             #            print("layer {} step {} succeeded!".format(i, s))
             # Now the verification passes, verifier generate random challenges.
