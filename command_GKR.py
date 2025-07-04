@@ -11,7 +11,7 @@ import os
 # current_dir is the folder which contains the current python file.
 current_dir = os.path.dirname(os.path.abspath(__file__))
 # print("current_dir:", current_dir)
-data_dir = os.path.join(current_dir, "./test_circuit/16_3dconv.csv")
+data_dir = os.path.join(current_dir, "./test_circuit/parallel_test.csv")
 # file_path = os.path.join(data_dir, "events_semantic.json")
 
 
@@ -38,6 +38,9 @@ def execute(C):
     """execute GKR for a circuit C"""
     if TIME_INFO:
         start_time = time.time()
+    # This k is the size of each layer before assigning copy.
+    # k is a list containing int. k[2] is the bit length of the gates in layer 2.
+    # For now we assume the whole circuit conform to one assignment.
     k = C.get_k()
     d = C.get_depth()
     # initialize prover and verifier
