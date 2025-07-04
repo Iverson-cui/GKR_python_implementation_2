@@ -25,6 +25,12 @@ import verifier_GKR as V_GKR
 TIME_INFO = True
 DEBUG_INFO = False
 
+import os
+
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+data_dir = os.path.join(current_dir, "test_circuit/1_3dconv.csv")
+
 
 def execute(C):
     """execute GKR for a circuit C"""
@@ -123,6 +129,6 @@ def execute(C):
 
 # C = [circuit.createCircuit("circuitdata-{}.csv".format(i), 10007) for i in range(1, 5)]
 # Deep_C = circuit.createCircuit("deep_circuit-1.csv", 10007)
-test_circuit = circuit.createCircuit("./test_circuit/8_3dconv.csv", 10007)
-execution_time = timeit.timeit(lambda: execute(test_circuit), number=5)
-print("Execution time for test_circuit: ", execution_time / 5, "seconds")
+test_circuit = circuit.createCircuit(data_dir, 10007)
+execution_time = timeit.timeit(lambda: execute(test_circuit), number=3)
+print("Execution time for test_circuit: ", execution_time / 3, "seconds")
