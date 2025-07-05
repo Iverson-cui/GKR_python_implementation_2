@@ -77,7 +77,7 @@ class Prover(Interactor):
         p = circ.get_p()
         k = circ.get_k()
         copy_k = self.get_copy_k()
-        num_copy = k[0] - copy_k[0]
+        num_copy = self.get_num_copy()
         assert i >= 0 and i < d, "i is out of bounds"
         assert i < len(self.get_random_vectors()), "haven't reached this layer yet"
         # the partial sumcheck function address the case of s=0.
@@ -384,13 +384,13 @@ class Prover(Interactor):
         ), "In parallel settings, step must be between 0 and 2*copy_k_{i+1}"
 
         # Now protocol starts. RV_i is the input to the claim at this layer. In detail, every layer, the claim starts with W_i(random vector)=claimed value. RV_i here is the random vector.
-        RV_i = self.get_random_vector(i)
 
         # at step = 0 of the sumcheck about W_i and W_i+1, we are starting the sumcheck protocol and
         # have to send back the actual value of
         # \tilde{W}_i(value_of_random_vectors[i]).
         # (NOTE: no sum is required.)
         if s == 0:
+            RV_i = self.get_random_vector(i)
             new_evaluation = self.get_evaluation_of_RV(i)
             if DEBUG_INFO:
                 print(
