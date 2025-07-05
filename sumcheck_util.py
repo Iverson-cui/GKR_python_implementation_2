@@ -27,7 +27,7 @@ def int_to_bin(i: int, d: int) -> tuple:
 
     # make sure the number can be expressed in d digits.
     if i < 0 or 2**d < i:
-        print("out of bounds")
+        print("out of bounds, i={}".format(i))
     #        return tuple([])
     assert i >= 0 and i <= 2**d
 
@@ -314,7 +314,11 @@ def Cormode_eval_W(
     There are in total k[i+1] variables in W_i+1, the first s variables are finite field elements and the rest are binary.
     """
     assert len(W_binary) == 2**num_var, "W_binary must be of length 2^N"
-    assert len(input_so_far) == step, "input must be of length s"
+    assert (
+        len(input_so_far) == step
+    ), "input must be of length s, you provide input with length {} and step s is {}".format(
+        len(input_so_far), step
+    )
     # s-1 variables are random challenge elements, s-th variable is 0/1/2
     # current_random_elements holds the first s-1 random elements.
     # current_random_elements = self.get_layer_i_sumcheck_random_elements(layer)

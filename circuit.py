@@ -43,15 +43,22 @@ class Circuit:
     explained above this function.
     """
 
-    def __init__(self, d: int, k: list, p: int):
+    def __init__(self, d: int, k: list, p: int, num_copy: int):
         assert d == len(k) - 1, "depth is not the same as the length of the list k"
         self.L = [dict() for i in range(d + 1)]
         self.k = copy.deepcopy(k)
+        self.num_copy = num_copy
+        self.copy_k = [x - num_copy for x in k]
         self.d = d
         self.p = p
 
     def deepcopy(self):
-        C = Circuit(self.get_depth(), copy.deepcopy(self.get_k()), self.get_p())
+        C = Circuit(
+            self.get_depth(),
+            copy.deepcopy(self.get_k()),
+            self.get_p(),
+            self.num_copy,
+        )
         C.L = copy.deepcopy(self.get_circuitData())
         return C
 
@@ -60,6 +67,12 @@ class Circuit:
 
     def get_k(self):
         return self.k
+
+    def get_num_copy(self):
+        return self.num_copy
+
+    def get_copy_k(self):
+        return self.copy_k
 
     def get_p(self):
         return self.p
@@ -180,21 +193,23 @@ class Circuit:
         # it needs to be modified. Just as in MatMul, it is
         """
         # add_i = self.get_add_and_mult(i)[0]
-        k = self.get_k()
+        # k = self.get_k()
         p = self.get_p()
-        N = k[i] + 2 * k[i + 1]
-        assert N == len(x), "length of vector is not correct"
+        N = self.copy_k[i] + 2 * self.copy_k[i + 1]
+        assert N == len(
+            x
+        ), f"length of vector is not correct, expected {N} but got {len(x)}"
         answer = 0
         # When calculating MLE of add, we only need to iterate over the layer i gates, not layer i+2*layer i+1 gates. That's because each layer i gate contribute to only one term in the sum, which means tilde add function itself is very sparse.
-        for gate in range(2 ** k[i]):
+        for gate in range(2 ** self.copy_k[i]):
             if self.get_type(i, gate) == "add":
 
                 first_input, second_input = self.get_inputs(i, gate)
 
                 w = (
-                    SU.int_to_bin(gate, k[i])
-                    + SU.int_to_bin(first_input, k[i + 1])
-                    + SU.int_to_bin(second_input, k[i + 1])
+                    SU.int_to_bin(gate, self.copy_k[i])
+                    + SU.int_to_bin(first_input, self.copy_k[i + 1])
+                    + SU.int_to_bin(second_input, self.copy_k[i + 1])
                 )
 
                 answer = (answer + SU.chi(w, x, N, p)) % p
@@ -208,17 +223,19 @@ class Circuit:
         # mult_i = self.get_add_and_mult(i)[1]
         k = self.get_k()
         p = self.get_p()
-        N = k[i] + 2 * k[i + 1]
-        assert N == len(x), "length of vector is not correct"
+        N = self.copy_k[i] + 2 * self.copy_k[i + 1]
+        assert N == len(
+            x
+        ), f"length of vector is not correct, expected {N} but got {len(x)}"
         answer = 0
-        for gate in range(2 ** k[i]):
+        for gate in range(2 ** self.copy_k[i]):
             if self.get_type(i, gate) == "mult":
                 first_input, second_input = self.get_inputs(i, gate)
 
                 w = (
-                    SU.int_to_bin(gate, k[i])
-                    + SU.int_to_bin(first_input, k[i + 1])
-                    + SU.int_to_bin(second_input, k[i + 1])
+                    SU.int_to_bin(gate, self.copy_k[i])
+                    + SU.int_to_bin(first_input, self.copy_k[i + 1])
+                    + SU.int_to_bin(second_input, self.copy_k[i + 1])
                 )
 
                 answer = (answer + SU.chi(w, x, N, p)) % p
@@ -397,7 +414,7 @@ def build_random_circuit_of_depth_d(d, max_k, max_input, p):
     return C
 
 
-def createCircuit(fileName: str, p: int) -> Circuit:
+def createCircuit(fileName: str, num_copy: int, p: int) -> Circuit:
     """createCircuit takes in a file name and a prime and returns a circuit.
 
     The file must be in the following format.
@@ -414,7 +431,7 @@ def createCircuit(fileName: str, p: int) -> Circuit:
         circuitData.append(line)
         k.append(int(math.log2(int(line[1]))))
     d = len(circuitData) - 1
-    C = Circuit(d, k, p)
+    C = Circuit(d, k, p, num_copy)
 
     # check to make sure circuitData passes some basic sanity checks.
     # check each non-input layer. If it passes, add the layer to C.

@@ -12,7 +12,7 @@ from interactor_GKR import Interactor
 import sumcheck_util as SU
 import circuit
 
-DEBUG_INFO = False
+DEBUG_INFO = True
 
 
 class Prover(Interactor):
@@ -55,13 +55,12 @@ class Prover(Interactor):
     def sum_fi(self, i: int, s: int):
         """
         sum_fi
-        INPUTS: i (integer meaning the number of layers), s (step)
+        INPUTS: i (integer meaning the number of layers), s (step), num_copy (binary representation of the number of copies), RV (random vector sent by verifier, which is the math formula is z, {z_1+z_2}. This vector will be used in evaluation of W_i+1. the length of RV is k[i])
         OUTPUTS: a quadratic polynomial, in the form of a list, i.e. [a, b, c],
             which corresponds to a + bx + cx^2
 
         sum_fi computes the relevant partial boolean hypercube sum that the prover
-        must compute at the sth step of the sumcheck protocol on the ith layer. the function returns
-        a quadratic polynomial.
+        must compute at the sth step of the sumcheck protocol on the ith layer. the function returns a quadratic polynomial.
 
         the sumcheck is done on a function fi, but we do not independently compute fi; rather,
         we use an optimization.
@@ -77,9 +76,21 @@ class Prover(Interactor):
         d = circ.get_depth()
         p = circ.get_p()
         k = circ.get_k()
+        copy_k = self.get_copy_k()
+        num_copy = k[0] - copy_k[0]
         assert i >= 0 and i < d, "i is out of bounds"
         assert i < len(self.get_random_vectors()), "haven't reached this layer yet"
-        assert s >= 1 and s <= 2 * k[i + 1], "the step s in sumcheck is out of bounds"
+        # the partial sumcheck function address the case of s=0.
+        assert (
+            s >= 1 and s <= 2 * copy_k[i + 1]
+        ), "In parallel settings, the step s in sumcheck is out of bounds"
+        # check the len and type of RV
+        assert isinstance(
+            self.get_random_vector(i), tuple
+        ), f"RV must be a tuple, but got {type(self.get_random_vector(i))}"
+        assert (
+            len(self.get_random_vector(i)) == k[i]
+        ), f"RV must have {k[i]} elements, but got {len(self.get_random_vector(i))}"
         poly_values = [
             0,
             0,
@@ -92,7 +103,6 @@ class Prover(Interactor):
         # involving summing over the gates. (This is explained in 4.6.5, method 2,
         # of Thaler's book as of 09/04/2022.)
 
-        # We can use Tormode method or Thaler method to speed this up.
         # Depending on which step we are in, all of the s cases can be separated into four part. 1. 1<=s<k[i+1], where b is half binary and c is full binary. 2. s=k[i+1], where b is full FFE and c is full binary. 3. k[i+1]<s<2*k[i+1], where b is full FFE and c is half binary. 4. s=2*k[i+1], where b is full FFE and c is full FFE.
         # the reason we do this is that when input to W_i+1 is in different categories, ways to evaluate it are different.
         current_random_elements = self.get_layer_i_sumcheck_random_elements(i)
@@ -115,27 +125,73 @@ class Prover(Interactor):
         # z = tuple(self.get_random_vector(i)) + bc
         # W_iplus1 is a dictionary that takes in k[i+1] bits.
         W_iplus1 = circ.get_W(i + 1)
-        if s < k[i + 1]:
+        # z1 is the gate random, z1 is of length copy_k[i].
+        z1 = self.get_random_vector(i)[-copy_k[i] :]
+        # z2 is the copy random, z2 is of length k[i] - copy_k[i].
+        z2 = self.get_random_vector(i)[: -copy_k[i]]
+        # Initialize variables that might be used later
+        Cormode_b_0 = None
+        Cormode_b_1 = None
+        Cormode_b_2 = None
+        Cormode_c = None
+        Cormode_c_0 = None
+        Cormode_c_1 = None
+        Cormode_c_2 = None
+
+        # First case, [1, copy_k[i + 1]). Use cormode for b in every s and Cormode for c once for all s.
+        if s < copy_k[i + 1]:
             # b: Cormode c: all binary, directly retrieve
-            Cormode_b_0 = SU.Cormode_eval_W(W_iplus1, bc_partial + (0,), s, k[i + 1], p)
-            Cormode_b_1 = SU.Cormode_eval_W(W_iplus1, bc_partial + (1,), s, k[i + 1], p)
-            Cormode_b_2 = SU.Cormode_eval_W(W_iplus1, bc_partial + (2,), s, k[i + 1], p)
-        elif k[i + 1] < s < 2 * k[i + 1]:
-            partial_input_to_c_0 = bc_partial[k[i + 1] : s - 1] + (0,)
-            partial_input_to_c_1 = bc_partial[k[i + 1] : s - 1] + (1,)
-            partial_input_to_c_2 = bc_partial[k[i + 1] : s - 1] + (2,)
+            # Cormode_b takes in length copy_k[i+1]-s
+            Cormode_b_0 = SU.Cormode_eval_W(
+                W_iplus1, z2 + bc_partial + (0,), s + num_copy, k[i + 1], p
+            )
+            Cormode_b_1 = SU.Cormode_eval_W(
+                W_iplus1, z2 + bc_partial + (1,), s + num_copy, k[i + 1], p
+            )
+            Cormode_b_2 = SU.Cormode_eval_W(
+                W_iplus1, z2 + bc_partial + (2,), s + num_copy, k[i + 1], p
+            )
+            # Cormode_c can be optimized. when s<copy_k[i+1], Cormode_c is always the same. But Now I have no idea how to optimize it.
+            # Cormode_c takes in length copy_k[i+1]
+            Cormode_c = SU.Cormode_eval_W(
+                W_iplus1, z2, k[i + 1] - copy_k[i + 1], k[i + 1], p
+            )
+        # Second case, s == copy_k[i + 1]. b is calculated by MLE eval, while c is calculated with the same Cormode as above.
+        elif s == copy_k[i + 1]:
+            Cormode_c = SU.Cormode_eval_W(
+                W_iplus1, z2, k[i + 1] - copy_k[i + 1], k[i + 1], p
+            )
+        # Third case, B is still calculated by MLE, C is calculated by Cormode per step.
+        elif copy_k[i + 1] < s < 2 * copy_k[i + 1]:
+            partial_input_to_c_0 = z2 + bc_partial[copy_k[i + 1] : s - 1] + (0,)
+            partial_input_to_c_1 = z2 + bc_partial[copy_k[i + 1] : s - 1] + (1,)
+            partial_input_to_c_2 = z2 + bc_partial[copy_k[i + 1] : s - 1] + (2,)
             Cormode_c_0 = SU.Cormode_eval_W(
-                W_iplus1, partial_input_to_c_0, s - k[i + 1], k[i + 1], p
+                W_iplus1,
+                partial_input_to_c_0,
+                s + num_copy - copy_k[i + 1],
+                k[i + 1],
+                p,
             )
             Cormode_c_1 = SU.Cormode_eval_W(
-                W_iplus1, partial_input_to_c_1, s - k[i + 1], k[i + 1], p
+                W_iplus1,
+                partial_input_to_c_1,
+                s + num_copy - copy_k[i + 1],
+                k[i + 1],
+                p,
             )
             Cormode_c_2 = SU.Cormode_eval_W(
-                W_iplus1, partial_input_to_c_2, s - k[i + 1], k[i + 1], p
+                W_iplus1,
+                partial_input_to_c_2,
+                s + num_copy - copy_k[i + 1],
+                k[i + 1],
+                p,
             )
-
+        else:
+            pass
         # The Cormode evaluation should be done before going into each specific gate.
-        for gate in range(2 ** k[i]):
+        for gate in range(2 ** copy_k[i]):
+            # we use the first copy as an example.
             gate_inputs = circ.get_inputs(i, gate)
             # a is a boolean string in {0,1}^k[i] \times {0,1}^{2*k[i+1]}
             # which consists (or runs over) triples where the second two parts
@@ -145,79 +201,112 @@ class Prover(Interactor):
                 + SU.int_to_bin(gate_inputs[0], k[i + 1])
                 + SU.int_to_bin(gate_inputs[1], k[i + 1])
             )
+            # a is composed of: num_copy+copy_k[i]+num_copy+copy_k[i+1]+num_copy+copy_k[i+1] bits.
+            # a_gate is used to specifically extract out the gate label of the 3 gates.
+            # a_gate is of length copy_k[i] + 2 * copy_k[i + 1].
+            a_gate = (
+                a[num_copy : k[i]]
+                + a[k[i] + num_copy : k[i] + k[i + 1]]
+                + a[k[i] + k[i + 1] + num_copy :]
+            )
             for x in range(3):
 
                 # No matter in which case, we all get poly_values[x] filled
                 gate_type = circ.get_type(i, gate)
-                if s < k[i + 1]:
+                if s < copy_k[i + 1]:
                     # b: Cormode c: all binary, directly retrieve
                     if x == 0:
                         W_iplus1_at_b = Cormode_b_0[
-                            SU.tuple_to_int(a[k[i] + s : k[i] + k[i + 1]])
+                            SU.tuple_to_int(
+                                a_gate[copy_k[i] + s : copy_k[i] + copy_k[i + 1]]
+                            )
                         ]
                     elif x == 1:
                         W_iplus1_at_b = Cormode_b_1[
-                            SU.tuple_to_int(a[k[i] + s : k[i] + k[i + 1]])
+                            SU.tuple_to_int(
+                                a_gate[copy_k[i] + s : copy_k[i] + copy_k[i + 1]]
+                            )
                         ]
                     elif x == 2:
                         W_iplus1_at_b = Cormode_b_2[
-                            SU.tuple_to_int(a[k[i] + s : k[i] + k[i + 1]])
+                            SU.tuple_to_int(
+                                a_gate[copy_k[i] + s : copy_k[i] + copy_k[i + 1]]
+                            )
                         ]
                     else:
                         raise ValueError("x must be 0, 1 or 2, but got {}".format(x))
 
-                    W_iplus1_at_c = W_iplus1[a[k[i] + k[i + 1] :]]
+                    W_iplus1_at_c = Cormode_c[
+                        SU.tuple_to_int(a_gate[copy_k[i] + copy_k[i + 1] :])
+                    ]
 
-                elif s == k[i + 1]:
+                elif s == copy_k[i + 1]:
                     # b: all FFE c: all binary, directly retrieve
                     if x == 0:
                         W_iplus1_at_b = SU.DP_eval_MLE(
-                            W_iplus1, bc_partial + (0,), k[i + 1], p
+                            W_iplus1, z2 + bc_partial + (0,), k[i + 1], p
                         )
                     elif x == 1:
                         W_iplus1_at_b = SU.DP_eval_MLE(
-                            W_iplus1, bc_partial + (1,), k[i + 1], p
+                            W_iplus1, z2 + bc_partial + (1,), k[i + 1], p
                         )
                     elif x == 2:
                         W_iplus1_at_b = SU.DP_eval_MLE(
-                            W_iplus1, bc_partial + (2,), k[i + 1], p
+                            W_iplus1, z2 + bc_partial + (2,), k[i + 1], p
                         )
                     else:
                         raise ValueError("x must be 0, 1 or 2, but got {}".format(x))
 
-                    W_iplus1_at_c = W_iplus1[a[k[i] + k[i + 1] :]]
+                    W_iplus1_at_c = Cormode_c[
+                        SU.tuple_to_int(a_gate[copy_k[i] + copy_k[i + 1] :])
+                    ]
 
-                elif k[i + 1] < s < 2 * k[i + 1]:
+                elif copy_k[i + 1] < s < 2 * copy_k[i + 1]:
                     # b: all FFE c: Cormode, directly retrieve
                     W_iplus1_at_b = SU.DP_eval_MLE(
-                        W_iplus1, bc_partial[: k[i + 1]], k[i + 1], p
+                        W_iplus1, z2 + bc_partial[: copy_k[i + 1]], k[i + 1], p
                     )
 
                     if x == 0:
-                        W_iplus1_at_c = Cormode_c_0[SU.tuple_to_int(a[k[i] + s :])]
+                        W_iplus1_at_c = Cormode_c_0[
+                            SU.tuple_to_int(a_gate[copy_k[i] + s :])
+                        ]
                     elif x == 1:
-                        W_iplus1_at_c = Cormode_c_1[SU.tuple_to_int(a[k[i] + s :])]
+                        W_iplus1_at_c = Cormode_c_1[
+                            SU.tuple_to_int(a_gate[copy_k[i] + s :])
+                        ]
                     elif x == 2:
-                        W_iplus1_at_c = Cormode_c_2[SU.tuple_to_int(a[k[i] + s :])]
+                        W_iplus1_at_c = Cormode_c_2[
+                            SU.tuple_to_int(a_gate[copy_k[i] + s :])
+                        ]
                     else:
                         raise ValueError("x must be 0, 1 or 2, but got {}".format(x))
 
-                elif s == 2 * k[i + 1]:
+                elif s == 2 * copy_k[i + 1]:
                     W_iplus1_at_b = SU.DP_eval_MLE(
-                        W_iplus1, bc_partial[: k[i + 1]], k[i + 1], p
+                        W_iplus1, z2 + bc_partial[: copy_k[i + 1]], k[i + 1], p
                     )
 
                     if x == 0:
                         W_iplus1_at_c = SU.DP_eval_MLE(
-                            W_iplus1, bc_partial[k[i + 1] :] + (0,), k[i + 1], p
+                            W_iplus1,
+                            z2 + bc_partial[copy_k[i + 1] :] + (0,),
+                            k[i + 1],
+                            p,
                         )
                     elif x == 1:
                         W_iplus1_at_c = SU.DP_eval_MLE(
-                            W_iplus1, bc_partial[k[i + 1] :] + (1,), k[i + 1], p
+                            W_iplus1,
+                            z2 + bc_partial[copy_k[i + 1] :] + (1,),
+                            k[i + 1],
+                            p,
                         )
                     elif x == 2:
                         W_iplus1_at_c = SU.DP_eval_MLE(
-                            W_iplus1, bc_partial[k[i + 1] :] + (2,), k[i + 1], p
+                            W_iplus1,
+                            z2 + bc_partial[copy_k[i + 1] :] + (2,),
+                            k[i + 1],
+                            p,
                         )
                     else:
                         raise ValueError("x must be 0, 1 or 2, but got {}".format(x))
@@ -225,16 +314,16 @@ class Prover(Interactor):
                     W_iplus1_at_b = 0
                     W_iplus1_at_c = 0
                     raise ValueError(
-                        "s must be between 1 and 2*k[i+1], but got {}".format(s)
+                        "s must be between 1 and 2*copy_k[i+1], but got {}".format(s)
                     )
 
                 if gate_type == "add":
                     poly_values[x] = (
                         poly_values[x]
                         + SU.chi(
-                            a[: k[i] + s],
-                            tuple(self.get_random_vector(i)) + bc_partial + (x,),
-                            k[i] + s,
+                            a_gate[: copy_k[i] + s],
+                            z1 + bc_partial + (x,),
+                            copy_k[i] + s,
                             p,
                         )
                         * (W_iplus1_at_b + W_iplus1_at_c)
@@ -243,9 +332,9 @@ class Prover(Interactor):
                     poly_values[x] = (
                         poly_values[x]
                         + SU.chi(
-                            a[: k[i] + s],
-                            tuple(self.get_random_vector(i)) + bc_partial + (x,),
-                            k[i] + s,
+                            a_gate[: copy_k[i] + s],
+                            z1 + bc_partial + (x,),
+                            copy_k[i] + s,
                             p,
                         )
                         * (W_iplus1_at_b * W_iplus1_at_c)
@@ -267,7 +356,7 @@ class Prover(Interactor):
         poly = SU.quadratic_interpolate(poly_values, p)
         return poly
 
-    def partial_sumcheck(self, i: int, s: int, random_element: int):
+    def partial_sumcheck(self, i: int, s: int, random_element: int, num_copy: int):
         """
         partial_sumcheck
         INPUT: i (integer), s (integer), random_element (integer)
@@ -278,18 +367,23 @@ class Prover(Interactor):
         of Thaler's book. this polynomial, which we will call f^{i}_{r_i}, is a polynomial in
         2 * k[i] variables
         i is the layer in the circuit, s is the step in the sumcheck protocol
-        random_element is the random element of F_p that the verifier sends. (in
-        case of the first communication, we'll  default this to 0.)
+        random_element is the random element of F_p that the verifier sends. (in case of the first communication, we'll  default this to 0.)
+        copy_number is the number of copies of the circuit that we are using. For now we assume the whole circuit conform to one assignment.
         returns a quadratic polynomial in the form [a, b, c], which corresponds to
         a + bx + cx^2
 
         The above sum_fi function can do most work of this, but we need to encapsulate that function. Here different actions are taken depending on the step s.
         """
         d = self.d
-        k = self.k
+        # k = self.k
+        copy_k = self.get_copy_k()
         assert i >= 0 and i < d, "i is out of bounds"
 
-        assert s >= 0 and s <= 2 * k[i + 1], "step must be between 0 and 2*k_{i+1}"
+        assert (
+            s >= 0 and s <= 2 * copy_k[i + 1]
+        ), "In parallel settings, step must be between 0 and 2*copy_k_{i+1}"
+
+        # Now protocol starts. RV_i is the input to the claim at this layer. In detail, every layer, the claim starts with W_i(random vector)=claimed value. RV_i here is the random vector.
         RV_i = self.get_random_vector(i)
 
         # at step = 0 of the sumcheck about W_i and W_i+1, we are starting the sumcheck protocol and
@@ -311,7 +405,7 @@ class Prover(Interactor):
             poly = self.sum_fi(i, s)
             self.append_sumcheck_polynomial(i, poly)
             return poly
-        elif s <= 2 * k[i + 1]:
+        elif s <= 2 * copy_k[i + 1]:
             # the sumcheck_random_elements[i] keeps updating as we use every round. It initializes to all 0 but every time we only use its non-zero part after update.
             self.append_element_SRE(i, random_element)
             poly = self.sum_fi(i, s)
@@ -337,11 +431,20 @@ class Prover(Interactor):
         when the verifier sends a random element, only in the next call of partial sumcheck does the
         prover add it to its internal state. But since it's the end there is no next call.
         """
+        # z_tuple is the z1 and z2.
+        z_tuple = self.get_random_vector(i)
         p = self.get_p()
         k = self.get_k()
+        copy_k = self.get_copy_k()
+        # num_copy = self.get_num_copy()
 
+        # After appending, there are only 2*copy_k[i+1] elements in the SRE.
         self.append_element_SRE(i, random_element)
+        # We need to expand it to 2*k[i+1]
+        self.process_SRE_for_parallelism(i, z_tuple[: -copy_k[i]])
+        # line is a function taking input an integer.
         line = self.compute_line(i)
+        self.append_line(line)
         W_iplus1 = self.circ.get_W(i + 1)
         # The polynomial sent, W_i+1(l) is at most k_i+1
         poly = SU.polynomial_interpolation(

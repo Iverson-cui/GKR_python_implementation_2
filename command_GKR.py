@@ -30,8 +30,8 @@ import circuit
 import prover_GKR as P_GKR
 import verifier_GKR as V_GKR
 
-DEBUG_INFO = False
-TIME_INFO = True
+DEBUG_INFO = True
+TIME_INFO = False
 
 
 def execute(C):
@@ -40,8 +40,11 @@ def execute(C):
         start_time = time.time()
     # This k is the size of each layer before assigning copy.
     # k is a list containing int. k[2] is the bit length of the gates in layer 2.
-    # For now we assume the whole circuit conform to one assignment.
+    # For now we assume the whole circuit conform to one assignment and the copy number is directly given.
+    num_copy = C.get_num_copy()
     k = C.get_k()
+    # copy_k contains the size of each layer after assigning copy.
+    copy_k = C.get_copy_k()
     d = C.get_depth()
     # initialize prover and verifier
     # First step: Prover and Verifier agree on a circuit C. In this circuit, only gate type and wiring predicate is set. The value of the gates is not calculated. Only prover needs to do this calculation.
@@ -85,12 +88,18 @@ def execute(C):
         # iterate over the gates(Every iteration is a round of sumcheck)
         if TIME_INFO:
             gate_loop_start_time = time.time()
-        for s in range(2 * k[i + 1] + 1):
-            # s spans from 0 to 2*k[i+1].
+        if DEBUG_INFO:
+            print(
+                "At layer {}, gate_label is {} while copy label is {}, in total {}. The next layer has gate label {}".format(
+                    i, copy_k[i], num_copy, k[i], copy_k[i + 1]
+                )
+            )
+        for s in range(2 * copy_k[i + 1] + 1):
+            # s spans from 0 to 2*copy_k[i+1].
             # when s=0, the prover just passes the MLE evaluated at the random vector passed by verifier. This is evident from p34 of the book. Prover needs to first send the sum of binary input of f_i.
             # i means layer number, s means step number, r means random element.
             # when s=1, fixing the first variable, there is no random element. This coincides with what the partial_sumcheck_check returns at s=0, namely, 0.
-            prover_msg = prover_inst.partial_sumcheck(i, s, r)
+            prover_msg = prover_inst.partial_sumcheck(i, s, r, num_copy)
             if DEBUG_INFO:
                 string_of_prover_msg = "+".join(
                     ["{}*x^{}".format(prover_msg[l], l) for l in [2, 1, 0]]
@@ -109,12 +118,12 @@ def execute(C):
                             i, s, r
                         )
                     )
-        # end_of_sumcheck_poly is what the prover claims \tilde{W}_i restricted to the line is.
-        end_of_sumcheck_poly = prover_inst.send_Wi_on_line(i, r)
+        # W_iplus1_with_line is what the prover claims \tilde{W}_i restricted to the line is.
+        W_iplus1_with_line = prover_inst.send_Wi_on_line(i, r)
         if DEBUG_INFO:
             print(
                 "The univariate polynomial that the prover sends at the end of step {} on the line is: {}".format(
-                    i, SU.string_of_polynomial(end_of_sumcheck_poly)
+                    i, SU.string_of_polynomial(W_iplus1_with_line)
                 )
             )
         if TIME_INFO:
@@ -127,7 +136,7 @@ def execute(C):
 
         if TIME_INFO:
             reduce_start_time = time.time()
-        new_random_vector = verifier_inst.reduce_two_to_one(i, end_of_sumcheck_poly)
+        new_random_vector = verifier_inst.reduce_two_to_one(i, W_iplus1_with_line)
         if TIME_INFO:
             reduce_end_time = time.time()
             print(
@@ -160,6 +169,6 @@ def execute(C):
 
 # C = [circuit.createCircuit("circuitdata-{}.csv".format(i), 10007) for i in range(1, 5)]
 # Deep_C = circuit.createCircuit("deep_circuit-1.csv", 10007)
-test_circuit = circuit.createCircuit(data_dir, 10007)
+test_circuit = circuit.createCircuit(data_dir, 2, 10007)
 execution_time = timeit.timeit(lambda: execute(test_circuit), number=5)
 print("Execution time for test_circuit: ", execution_time / 5, "seconds")

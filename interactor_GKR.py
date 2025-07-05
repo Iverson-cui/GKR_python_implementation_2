@@ -68,6 +68,8 @@ class Interactor:
         self.d = self.circ.get_depth()
         self.p = self.circ.get_p()
         self.k = self.circ.get_k()
+        self.num_copy = self.circ.get_num_copy()
+        self.copy_k = self.circ.get_copy_k()
         self.random_vectors = []
         self.evaluations_of_random_vectors = []
 
@@ -76,6 +78,14 @@ class Interactor:
         self.polynomials = [[] for i in range(self.d + 1)]
 
         self.lines = []
+
+    def get_copy_k(self):
+        # num_copy = self.circ.num_copy
+        return self.copy_k
+
+    def get_num_copy(self):
+        # num_copy = self.circ.num_copy
+        return self.num_copy
 
     def get_circ(self):
         return self.circ
@@ -115,7 +125,11 @@ class Interactor:
 
     def get_specific_polynomial(self, i, s):
         assert i >= 0 and i <= self.get_depth(), "i is out of bounds"
-        assert s >= 0 and s < len(self.get_polynomials()[i]), "s is out of bounds"
+        assert s >= 0 and s < len(
+            self.get_polynomials()[i]
+        ), "s is out of bounds, should be less than {}, but now is {}".format(
+            len(self.get_polynomials()[i]), s
+        )
         return self.get_polynomials()[i][s]
 
     def get_add_and_mult(self, i):
@@ -142,6 +156,26 @@ class Interactor:
         assert 0 <= i and i < self.get_depth()
         self.sumcheck_random_elements[i].append(random_element)
 
+    def process_SRE_for_parallelism(self, num_layer: int, z_tuple: tuple):
+        assert (
+            isinstance(z_tuple, tuple) and len(z_tuple) == self.get_num_copy()
+        ), f"z_tuple must be a tuple of length {self.get_num_copy()}, but got {type(z_tuple)} with length {len(z_tuple) if hasattr(z_tuple, '__len__') else 'N/A'}"
+        # In parallelism settings, the random element needs to be further processed.
+        length = len(self.sumcheck_random_elements[num_layer])
+
+        for element in reversed(z_tuple):
+            # We need to insert the elements of z_tuple into the sumcheck_random_elements[num_layer] at the right place.
+            # The right place is between the first and second element of sumcheck_random_elements[num_layer].
+            # So we insert them at index 1.
+            self.sumcheck_random_elements[num_layer].insert(0, element)
+        for i, element in enumerate(z_tuple):
+            # We also need to insert the elements of z_tuple at the beginning of sumcheck_random_elements[num_layer].
+            # So we insert them at index 0.
+            self.sumcheck_random_elements[num_layer].insert(
+                length // 2 + i + len(z_tuple), element
+            )
+        return
+
     def append_sumcheck_polynomial(self, i, poly):
         assert (
             0 <= i and i <= self.get_depth()
@@ -159,15 +193,15 @@ class Interactor:
         # compute_line returns a function F_p-->F_p^{k[i+1]} that is a line in between these two points.
         """
         k = self.get_k()
+        # copy_k = self.get_copy_k()
         p = self.get_p()
 
         # Given layer number i, we get access to the verifier random challenge by get_layer_i_sumcheck_random_elements(i).
         layer_i_random_elements = self.get_layer_i_sumcheck_random_elements(i)
         assert (
             len(layer_i_random_elements) == 2 * k[i + 1]
-        ), "the number of random elements the verifier has added to layer i is not 2*k[i+1]\
-                instead, {} is not {}".format(
-            len(layer_i_random_elements), 2 * k[i + 1]
+        ), "the number of random elements the verifier has added to layer {} is not 2*k[i+1], which means {} is not {}".format(
+            i, len(layer_i_random_elements), 2 * k[i + 1]
         )
         b = layer_i_random_elements[: k[i + 1]]
         c = layer_i_random_elements[k[i + 1] :]

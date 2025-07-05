@@ -18,8 +18,8 @@ import circuit
 import time
 from interactor_GKR import Interactor
 
-DEBUG_INFO = False
-TIME_INFO = True
+DEBUG_INFO = True
+TIME_INFO = False
 
 
 class Verifier(Interactor):
@@ -75,9 +75,11 @@ class Verifier(Interactor):
         """
         p = self.p
         d = self.d
-        k = self.get_circ().get_k()
+        copy_k = self.get_circ().get_copy_k()
         assert i >= 0 and i < d, "i is out of bounds"
-        assert s >= 0 and s <= 2 * k[i + 1], "step must be between 0 and 2*k_{i+1}"
+        assert (
+            s >= 0 and s <= 2 * copy_k[i + 1]
+        ), "step must be between 0 and 2*copy_k_{i+1}"
         # we will separate out three cases: s = 0, s = 1, and all other cases.
         if s == 0:
             # poly represents the *value* that the prover is claiming. I.e.,
@@ -113,7 +115,7 @@ class Verifier(Interactor):
             new_random_element = np.random.randint(0, p)
             self.append_element_SRE(i, new_random_element)
             return new_random_element
-        elif 1 < s <= 2 * k[i + 1]:
+        elif 1 < s <= 2 * copy_k[i + 1]:
             # The reason to separate out the case s == 1 is that, in each round of sumcheck we need to compare MLE at 0 + MLE at 1 = last round value. Last round value is calculated when used. This means we have to obtain the random element and poly of last round every time. When s=1, there is no last round random element, and poly is just a value.
             r = self.get_sumcheck_random_element(i, s - 1)
             sum_new_poly_at_0_1 = (
@@ -125,21 +127,25 @@ class Verifier(Interactor):
             )
             assert (
                 sum_new_poly_at_0_1 == old_value % p
-            ), "the check failed at layer {} step {}, {} is not equal to {}. k[i]={},k[i+1]={}".format(
-                i, s, sum_new_poly_at_0_1, old_value, k[i], k[i + 1]
+            ), "the check failed at layer {} step {}, {} is not equal to {}. copy_k[i]={},copy_k[i+1]={}".format(
+                i, s, sum_new_poly_at_0_1, old_value, copy_k[i], copy_k[i + 1]
             )
             #            print("layer {} step {} succeeded!".format(i, s))
             # Now the verification passes, verifier generate random challenges.
 
+            # first, append the polynomial that has passed the verification to the list of polynomials.
             self.append_sumcheck_polynomial(i, poly)
             new_random_element = np.random.randint(0, p)
+            # Then append the random challenge of the last variable to the SRE list.
             self.append_element_SRE(i, new_random_element)
 
-            # if we are at the last step of sumcheck for layer i, then
-            # compute+append the line between bstar and cstar.
-            if s == 2 * k[i + 1]:
-                f = self.compute_line(i)
-                self.append_line(f)
+            if s == 2 * copy_k[i + 1]:
+                layer_i_random_elements = self.get_layer_i_sumcheck_random_elements(i)
+                assert (
+                    len(layer_i_random_elements) == 2 * copy_k[i + 1]
+                ), "the number of random elements the verifier has added to layer {} is not 2*k[i+1], which means {} is not {}".format(
+                    i, len(layer_i_random_elements), 2 * copy_k[i + 1]
+                )
 
             return new_random_element
 
@@ -164,6 +170,8 @@ class Verifier(Interactor):
         p = self.get_p()
         k = self.get_k()
         circ = self.get_circ()
+        copy_k = self.get_copy_k()
+        z_tuple = self.get_random_vector(i)
         # The verifier needs to get the poly evaluated at 0 and 1 cause they are the claimed value of the prover
         if TIME_INFO:
             poly_start_time = time.time()
@@ -176,15 +184,22 @@ class Verifier(Interactor):
                 )
             )
         SRE_layer_i = self.get_layer_i_sumcheck_random_elements(i)
+        self.process_SRE_for_parallelism(i, z_tuple[: -copy_k[i]])
+        self.append_line(self.compute_line(i))
         bstar = tuple(SRE_layer_i[: k[i + 1]])
         cstar = tuple(SRE_layer_i[k[i + 1] :])
         RV_i = tuple(self.get_random_vector(i))
-        last_poly = self.get_specific_polynomial(i, 2 * k[i + 1])
+        last_poly = self.get_specific_polynomial(i, 2 * copy_k[i + 1])
         # To verify the claim, the verifier needs to know the values of add and mult.
         if TIME_INFO:
             add_mult_start_time = time.time()
-        add_bstar_cstar = circ.eval_MLE_add(i, RV_i + bstar + cstar)
-        mult_bstar_cstar = circ.eval_MLE_mult(i, RV_i + bstar + cstar)
+        # Although random vector and random element are of length k[i] and 2*k[i+1] respectively, we only need to evaluate add and mult at their gate label.
+        add_bstar_cstar = circ.eval_MLE_add(
+            i, RV_i[-copy_k[i] :] + bstar[-copy_k[i + 1] :] + cstar[-copy_k[i + 1] :]
+        )
+        mult_bstar_cstar = circ.eval_MLE_mult(
+            i, RV_i[-copy_k[i] :] + bstar[-copy_k[i + 1] :] + cstar[-copy_k[i + 1] :]
+        )
         if TIME_INFO:
             add_mult_end_time = time.time()
             print(
@@ -213,10 +228,7 @@ class Verifier(Interactor):
             )
         assert (
             current_claimed_value_of_fi == old_claimed_value_of_fi
-        ), "The first check at the end of sumcheck for layer {} failed:\
-            there is an imcompatibility between the last polynomial and the claimed\
-            values of \tilde{W}_{i+1}(bstar) and \tilde{W}_{i+1}(cstar)\
-                {}!={}".format(
+        ), "The first check at the end of sumcheck for layer {} failed: there is an imcompatibility between the last polynomial and the claimed values of \tilde W_i+1(bstar) and \tilde W_i+1(cstar) {}!={}".format(
             i, current_claimed_value_of_fi, old_claimed_value_of_fi
         )
         if DEBUG_INFO:
@@ -243,9 +255,12 @@ class Verifier(Interactor):
 
     def reduce_two_to_one_without_verification(self, i: int, poly: list):
         """
+        BEFORE:
         With the help of time test we know that verifier.reduce_two_to_one is the most time consuming part of the GKR protocol.
         We try to dig out why. This function I remove the verification part of reduce_two_to_one. To see if the time is reduced.
         If you want to use it in the command_GKR.py, you have to change where reduce_two_to_one to this function, and other parts of the code goes as usual.
+        AFTER:
+        Now we know it's just a bug causing empty loop to drag time. When the bug is fixed, there is no need to call this function.
         """
         p = self.get_p()
         line = self.get_line(i)
