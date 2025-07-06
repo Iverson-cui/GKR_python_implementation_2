@@ -140,6 +140,12 @@ class Prover(Interactor):
         W_iplus1_at_b = None
         W_iplus1_at_c = None
 
+        ###########################
+        #                         #
+        #   PREPARE FOR MATERIAL  #
+        #                         #
+        ###########################
+
         # First case, [1, copy_k[i + 1]). Use cormode for b in every s and Cormode for c once for all s.
         if s < copy_k[i + 1]:
             # b: Cormode c: all binary, directly retrieve
@@ -295,6 +301,13 @@ class Prover(Interactor):
 
         else:
             pass
+
+        ###########################
+        #                         #
+        #   UPDATE POLY VALUES    #
+        #                         #
+        ###########################
+
         # The Cormode evaluation should be done before going into each specific gate.
         for gate in range(2 ** copy_k[i]):
             # we use the first copy as an example.
@@ -831,7 +844,7 @@ class Prover(Interactor):
         poly = SU.quadratic_interpolate(poly_values, p)
         return poly
 
-    def partial_sumcheck(self, i: int, s: int, random_element: int, num_copy: int):
+    def partial_sumcheck(self, i: int, s: int, random_element: int):
         """
         partial_sumcheck
         INPUT: i (integer), s (integer), random_element (integer)
