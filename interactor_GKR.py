@@ -78,10 +78,15 @@ class Interactor:
         self.polynomials = [[] for i in range(self.d + 1)]
 
         self.lines = []
+        self.C = []
 
     def get_copy_k(self):
         # num_copy = self.circ.num_copy
         return self.copy_k
+
+    def get_C(self):
+        # num_copy = self.circ.num_copy
+        return self.C
 
     def get_num_copy(self):
         # num_copy = self.circ.num_copy

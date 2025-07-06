@@ -335,3 +335,99 @@ def Cormode_eval_W(
         result[class_index] = (result[class_index] + chi_value * value) % prime
     assert len(result) == 2 ** (num_var - step), "result must be of length 2^{k[i+1]-s}"
     return result
+
+
+def list_recombination(list_of_lists: list, num_var: int, p: int) -> list:
+    """
+    ARGS:
+    list_of_lists: a list of lists, each of which is a list of length 2^{num_var}
+    num_var: the number of variables in the list.
+    p: the prime number of the circuit.
+
+    OUTPUT:
+    a list containing the recombination of the input lists.
+
+    This function takes 2^m lists each of length 2^num_var and returns a list. The returning list takes the first element of each list and append them to the new list. Then it takes the second element and so on. So the result is a cycle list of all the lists.
+    In our case, this function is mainly used for tilde{W}_i+1 values.
+    """
+    for i, lst in enumerate(list_of_lists):
+        assert isinstance(
+            lst, list
+        ), f"Element {i} in list_of_lists must be a list, but got {type(lst)}"
+        assert (
+            len(lst) == 2**num_var
+        ), f"Element {i} in list_of_lists must have length 2^{num_var} (={2**num_var}), but got {len(lst)}"
+
+    # If no lists provided, return empty list
+    if not list_of_lists:
+        return []
+
+    # Initialize result list
+    result = []
+
+    # For each position (0 to 2^num_var - 1)
+    for pos in range(2**num_var):
+        # Take the element at position 'pos' from each list
+        for lst in list_of_lists:
+            result.append(lst[pos] % p)  # Apply modulo p for finite field arithmetic
+
+    return result
+
+
+def reusing_work_chi(z: tuple, num_var: int, p: int):
+    """
+    This function is part of DP_eval_MLE. It calculates chi function values given z in finite field. num_var is the number of variables, p is the prime number.
+
+    This function returns a list of length 2^num_var, each corresponding to a binary assignment of input variables.
+    """
+    chi_values = [1]
+    for i in range(num_var):
+        temp = []
+        for j in range(2**i):
+            temp.append((1 - z[i]) * chi_values[j] % p)
+            temp.append((z[i]) * chi_values[j] % p)
+        chi_values = temp
+
+    assert isinstance(
+        chi_values, list
+    ), f"chi_values must be a list, but got {type(chi_values)}"
+    assert (
+        len(chi_values) == 2**num_var
+    ), f"chi_values must have length 2^{num_var} (={2**num_var}), but got {len(chi_values)}"
+    return chi_values
+
+
+def finite_field_inverse(z, p):
+    """
+    Compute the multiplicative inverse of z in the finite field Z/pZ.
+
+    Args:
+        z: The finite field element (integer)
+        p: The prime number defining the finite field
+
+    Returns:
+        The multiplicative inverse z^(-1) mod p
+
+    Raises:
+        ValueError: If z is 0 or if p is not prime (basic check)
+    """
+    # First, let's validate our inputs
+    if z == 0:
+        raise ValueError("Zero has no multiplicative inverse in any field")
+
+    if p <= 1:
+        raise ValueError("Prime p must be greater than 1")
+
+    # Normalize z to be in the range [0, p-1]
+    z = z % p
+
+    # Check if z and p are coprime (necessary for inverse to exist)
+    # In a prime field, this means z should not be 0 mod p
+    if z == 0:
+        raise ValueError("z is congruent to 0 mod p, so no inverse exists")
+
+    # Use Fermat's Little Theorem: z^(-1) ≡ z^(p-2) (mod p)
+    # Python's pow function can efficiently compute modular exponentiation
+    inverse = pow(z, p - 2, p)
+
+    return inverse

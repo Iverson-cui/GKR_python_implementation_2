@@ -130,63 +130,169 @@ class Prover(Interactor):
         # z2 is the copy random, z2 is of length k[i] - copy_k[i].
         z2 = self.get_random_vector(i)[: -copy_k[i]]
         # Initialize variables that might be used later
-        Cormode_b_0 = None
-        Cormode_b_1 = None
-        Cormode_b_2 = None
-        Cormode_c = None
-        Cormode_c_0 = None
-        Cormode_c_1 = None
-        Cormode_c_2 = None
+        Cormode_b_add_0 = None
+        Cormode_b_add_1 = None
+        Cormode_b_add_2 = None
+        # Cormode_c = None
+        Cormode_c_add_0 = None
+        Cormode_c_add_1 = None
+        Cormode_c_add_2 = None
+        W_iplus1_at_b = None
+        W_iplus1_at_c = None
 
         # First case, [1, copy_k[i + 1]). Use cormode for b in every s and Cormode for c once for all s.
         if s < copy_k[i + 1]:
             # b: Cormode c: all binary, directly retrieve
             # Cormode_b takes in length copy_k[i+1]-s
-            Cormode_b_0 = SU.Cormode_eval_W(
-                W_iplus1, z2 + bc_partial + (0,), s + num_copy, k[i + 1], p
-            )
-            Cormode_b_1 = SU.Cormode_eval_W(
-                W_iplus1, z2 + bc_partial + (1,), s + num_copy, k[i + 1], p
-            )
-            Cormode_b_2 = SU.Cormode_eval_W(
-                W_iplus1, z2 + bc_partial + (2,), s + num_copy, k[i + 1], p
-            )
-            # Cormode_c can be optimized. when s<copy_k[i+1], Cormode_c is always the same. But Now I have no idea how to optimize it.
-            # Cormode_c takes in length copy_k[i+1]
-            Cormode_c = SU.Cormode_eval_W(
-                W_iplus1, z2, k[i + 1] - copy_k[i + 1], k[i + 1], p
-            )
+            if 0 <= i < d - 1:
+                Cormode_b_add_0 = SU.Cormode_eval_W(
+                    W_iplus1, z2 + bc_partial + (0,), s + num_copy, k[i + 1], p
+                )
+                Cormode_b_add_1 = SU.Cormode_eval_W(
+                    W_iplus1, z2 + bc_partial + (1,), s + num_copy, k[i + 1], p
+                )
+                Cormode_b_add_2 = SU.Cormode_eval_W(
+                    W_iplus1, z2 + bc_partial + (2,), s + num_copy, k[i + 1], p
+                )
+
+                # Cormode_c takes in length copy_k[i+1]
+
+                Cormode_c_add = SU.Cormode_eval_W(W_iplus1, z2, num_copy, k[i + 1], p)
+            else:
+                # cormode_results_012 is the list used in mult case.
+                # For x = 0, 1, 2
+                cormode_results_0 = [
+                    SU.Cormode_eval_W(
+                        W_iplus1,
+                        SU.int_to_bin(copy_index, num_copy) + bc_partial + (0,),
+                        s + num_copy,
+                        k[i + 1],
+                        p,
+                    )
+                    for copy_index in range(2**num_copy)
+                ]
+
+                cormode_results_1 = [
+                    SU.Cormode_eval_W(
+                        W_iplus1,
+                        SU.int_to_bin(copy_index, num_copy) + bc_partial + (1,),
+                        s + num_copy,
+                        k[i + 1],
+                        p,
+                    )
+                    for copy_index in range(2**num_copy)
+                ]
+
+                cormode_results_2 = [
+                    SU.Cormode_eval_W(
+                        W_iplus1,
+                        SU.int_to_bin(copy_index, num_copy) + bc_partial + (2,),
+                        s + num_copy,
+                        k[i + 1],
+                        p,
+                    )
+                    for copy_index in range(2**num_copy)
+                ]
+                # Cormode_b_mult is a list of length 2**(num_copy+copy_k[i+1]-s)
+                # The first 4 is when a_2 = 00,01,10,11. Then a_2 is 00 again. a_2 is the variables first iterated.
+                Cormode_b_mult_0 = SU.list_recombination(
+                    cormode_results_0, copy_k[i + 1] - s, p
+                )
+                Cormode_b_mult_1 = SU.list_recombination(
+                    cormode_results_1, copy_k[i + 1] - s, p
+                )
+                Cormode_b_mult_2 = SU.list_recombination(
+                    cormode_results_2, copy_k[i + 1] - s, p
+                )
+
+                # Cormode_c takes in length copy_k[i+1]
+                Cormode_c_mult = W_iplus1
         # Second case, s == copy_k[i + 1]. b is calculated by MLE eval, while c is calculated with the same Cormode as above.
-        elif s == copy_k[i + 1]:
-            Cormode_c = SU.Cormode_eval_W(
-                W_iplus1, z2, k[i + 1] - copy_k[i + 1], k[i + 1], p
-            )
+        # elif s == copy_k[i + 1]:
+        #     # Cormode_c_add keeps the same.
+        #     Cormode_c = SU.Cormode_eval_W(W_iplus1, z2, num_copy, k[i + 1], p)
+
         # Third case, B is still calculated by MLE, C is calculated by Cormode per step.
         elif copy_k[i + 1] < s < 2 * copy_k[i + 1]:
-            partial_input_to_c_0 = z2 + bc_partial[copy_k[i + 1] : s - 1] + (0,)
-            partial_input_to_c_1 = z2 + bc_partial[copy_k[i + 1] : s - 1] + (1,)
-            partial_input_to_c_2 = z2 + bc_partial[copy_k[i + 1] : s - 1] + (2,)
-            Cormode_c_0 = SU.Cormode_eval_W(
-                W_iplus1,
-                partial_input_to_c_0,
-                s + num_copy - copy_k[i + 1],
-                k[i + 1],
-                p,
-            )
-            Cormode_c_1 = SU.Cormode_eval_W(
-                W_iplus1,
-                partial_input_to_c_1,
-                s + num_copy - copy_k[i + 1],
-                k[i + 1],
-                p,
-            )
-            Cormode_c_2 = SU.Cormode_eval_W(
-                W_iplus1,
-                partial_input_to_c_2,
-                s + num_copy - copy_k[i + 1],
-                k[i + 1],
-                p,
-            )
+            # add gates
+            if 0 <= i < d - 1:
+                # We only deal with c here cause in this case b can be calculated by MLE.
+                partial_input_to_c_0 = z2 + bc_partial[copy_k[i + 1] : s - 1] + (0,)
+                partial_input_to_c_1 = z2 + bc_partial[copy_k[i + 1] : s - 1] + (1,)
+                partial_input_to_c_2 = z2 + bc_partial[copy_k[i + 1] : s - 1] + (2,)
+                Cormode_c_add_0 = SU.Cormode_eval_W(
+                    W_iplus1,
+                    partial_input_to_c_0,
+                    s + num_copy - copy_k[i + 1],
+                    k[i + 1],
+                    p,
+                )
+                Cormode_c_add_1 = SU.Cormode_eval_W(
+                    W_iplus1,
+                    partial_input_to_c_1,
+                    s + num_copy - copy_k[i + 1],
+                    k[i + 1],
+                    p,
+                )
+                Cormode_c_add_2 = SU.Cormode_eval_W(
+                    W_iplus1,
+                    partial_input_to_c_2,
+                    s + num_copy - copy_k[i + 1],
+                    k[i + 1],
+                    p,
+                )
+            # mult gate
+            else:
+                # b can be calculated by a list containing MLE evals.
+                partial_input_to_c_0 = bc_partial[copy_k[i + 1] : s - 1] + (0,)
+                partial_input_to_c_1 = bc_partial[copy_k[i + 1] : s - 1] + (1,)
+                partial_input_to_c_2 = bc_partial[copy_k[i + 1] : s - 1] + (2,)
+                cormode_results_0 = [
+                    SU.Cormode_eval_W(
+                        W_iplus1,
+                        SU.int_to_bin(copy_index, num_copy) + partial_input_to_c_0,
+                        s - copy_k[i + 1] + num_copy,
+                        k[i + 1],
+                        p,
+                    )
+                    for copy_index in range(2**num_copy)
+                ]
+
+                cormode_results_1 = [
+                    SU.Cormode_eval_W(
+                        W_iplus1,
+                        SU.int_to_bin(copy_index, num_copy) + partial_input_to_c_1,
+                        s - copy_k[i + 1] + num_copy,
+                        k[i + 1],
+                        p,
+                    )
+                    for copy_index in range(2**num_copy)
+                ]
+
+                cormode_results_2 = [
+                    SU.Cormode_eval_W(
+                        W_iplus1,
+                        SU.int_to_bin(copy_index, num_copy) + partial_input_to_c_2,
+                        s - copy_k[i + 1] + num_copy,
+                        k[i + 1],
+                        p,
+                    )
+                    for copy_index in range(2**num_copy)
+                ]
+
+                Cormode_c_mult_0 = SU.list_recombination(
+                    cormode_results_0, copy_k[i + 1] - s, p
+                )
+                Cormode_c_mult_1 = SU.list_recombination(
+                    cormode_results_1, copy_k[i + 1] - s, p
+                )
+                Cormode_c_mult_2 = SU.list_recombination(
+                    cormode_results_2, copy_k[i + 1] - s, p
+                )
+                assert len(Cormode_c_mult_0) == 2 ** (num_copy + copy_k[i + 1] - s)
+                assert len(Cormode_c_mult_1) == 2 ** (num_copy + copy_k[i + 1] - s)
+                assert len(Cormode_c_mult_2) == 2 ** (num_copy + copy_k[i + 1] - s)
+
         else:
             pass
         # The Cormode evaluation should be done before going into each specific gate.
@@ -196,12 +302,13 @@ class Prover(Interactor):
             # a is a boolean string in {0,1}^k[i] \times {0,1}^{2*k[i+1]}
             # which consists (or runs over) triples where the second two parts
             # are input gates to the first piece.
+            # a is composed of: num_copy+copy_k[i]+num_copy+copy_k[i+1]+num_copy+copy_k[i+1] bits.
             a = (
                 SU.int_to_bin(gate, k[i])
                 + SU.int_to_bin(gate_inputs[0], k[i + 1])
                 + SU.int_to_bin(gate_inputs[1], k[i + 1])
             )
-            # a is composed of: num_copy+copy_k[i]+num_copy+copy_k[i+1]+num_copy+copy_k[i+1] bits.
+
             # a_gate is used to specifically extract out the gate label of the 3 gates.
             # a_gate is of length copy_k[i] + 2 * copy_k[i + 1].
             a_gate = (
@@ -209,113 +316,481 @@ class Prover(Interactor):
                 + a[k[i] + num_copy : k[i] + k[i + 1]]
                 + a[k[i] + k[i + 1] + num_copy :]
             )
+            assert (
+                len(a_gate) == copy_k[i] + 2 * copy_k[i + 1]
+            ), "a_gate must have length {}, but got {}".format(
+                copy_k[i] + 2 * copy_k[i + 1], len(a_gate)
+            )
             for x in range(3):
 
                 # No matter in which case, we all get poly_values[x] filled
                 gate_type = circ.get_type(i, gate)
-                if s < copy_k[i + 1]:
-                    # b: Cormode c: all binary, directly retrieve
-                    if x == 0:
-                        W_iplus1_at_b = Cormode_b_0[
-                            SU.tuple_to_int(
-                                a_gate[copy_k[i] + s : copy_k[i] + copy_k[i + 1]]
+                # Add gate layer
+                if not i == d - 1:
+                    if s < copy_k[i + 1]:
+                        # b: Cormode c: all binary, directly retrieve
+                        if x == 0:
+                            W_iplus1_at_b = Cormode_b_add_0[
+                                SU.tuple_to_int(
+                                    a_gate[copy_k[i] + s : copy_k[i] + copy_k[i + 1]]
+                                )
+                            ]
+                        elif x == 1:
+                            W_iplus1_at_b = Cormode_b_add_1[
+                                SU.tuple_to_int(
+                                    a_gate[copy_k[i] + s : copy_k[i] + copy_k[i + 1]]
+                                )
+                            ]
+                        elif x == 2:
+                            W_iplus1_at_b = Cormode_b_add_2[
+                                SU.tuple_to_int(
+                                    a_gate[copy_k[i] + s : copy_k[i] + copy_k[i + 1]]
+                                )
+                            ]
+                        else:
+                            raise ValueError(
+                                "x must be 0, 1 or 2, but got {}".format(x)
                             )
+
+                        W_iplus1_at_c = Cormode_c_add[
+                            SU.tuple_to_int(a_gate[copy_k[i] + copy_k[i + 1] :])
                         ]
-                    elif x == 1:
-                        W_iplus1_at_b = Cormode_b_1[
-                            SU.tuple_to_int(
-                                a_gate[copy_k[i] + s : copy_k[i] + copy_k[i + 1]]
+
+                    elif s == copy_k[i + 1]:
+                        # b: all FFE c: all binary, directly retrieve
+                        if x == 0:
+                            W_iplus1_at_b = SU.DP_eval_MLE(
+                                W_iplus1, z2 + bc_partial + (0,), k[i + 1], p
                             )
-                        ]
-                    elif x == 2:
-                        W_iplus1_at_b = Cormode_b_2[
-                            SU.tuple_to_int(
-                                a_gate[copy_k[i] + s : copy_k[i] + copy_k[i + 1]]
+                        elif x == 1:
+                            W_iplus1_at_b = SU.DP_eval_MLE(
+                                W_iplus1, z2 + bc_partial + (1,), k[i + 1], p
                             )
+                        elif x == 2:
+                            W_iplus1_at_b = SU.DP_eval_MLE(
+                                W_iplus1, z2 + bc_partial + (2,), k[i + 1], p
+                            )
+                        else:
+                            raise ValueError(
+                                "x must be 0, 1 or 2, but got {}".format(x)
+                            )
+
+                        Cormode_c_add = SU.Cormode_eval_W(
+                            W_iplus1, z2, num_copy, k[i + 1], p
+                        )
+                        W_iplus1_at_c = Cormode_c_add[
+                            SU.tuple_to_int(a_gate[copy_k[i] + copy_k[i + 1] :])
                         ]
-                    else:
-                        raise ValueError("x must be 0, 1 or 2, but got {}".format(x))
 
-                    W_iplus1_at_c = Cormode_c[
-                        SU.tuple_to_int(a_gate[copy_k[i] + copy_k[i + 1] :])
-                    ]
-
-                elif s == copy_k[i + 1]:
-                    # b: all FFE c: all binary, directly retrieve
-                    if x == 0:
+                    elif copy_k[i + 1] < s < 2 * copy_k[i + 1]:
+                        # b: all FFE c: Cormode, directly retrieve
                         W_iplus1_at_b = SU.DP_eval_MLE(
-                            W_iplus1, z2 + bc_partial + (0,), k[i + 1], p
+                            W_iplus1, z2 + bc_partial[: copy_k[i + 1]], k[i + 1], p
                         )
-                    elif x == 1:
+
+                        if x == 0:
+                            W_iplus1_at_c = Cormode_c_add_0[
+                                SU.tuple_to_int(a_gate[copy_k[i] + s :])
+                            ]
+                        elif x == 1:
+                            W_iplus1_at_c = Cormode_c_add_1[
+                                SU.tuple_to_int(a_gate[copy_k[i] + s :])
+                            ]
+                        elif x == 2:
+                            W_iplus1_at_c = Cormode_c_add_2[
+                                SU.tuple_to_int(a_gate[copy_k[i] + s :])
+                            ]
+                        else:
+                            raise ValueError(
+                                "x must be 0, 1 or 2, but got {}".format(x)
+                            )
+
+                    elif s == 2 * copy_k[i + 1]:
                         W_iplus1_at_b = SU.DP_eval_MLE(
-                            W_iplus1, z2 + bc_partial + (1,), k[i + 1], p
+                            W_iplus1, z2 + bc_partial[: copy_k[i + 1]], k[i + 1], p
                         )
-                    elif x == 2:
-                        W_iplus1_at_b = SU.DP_eval_MLE(
-                            W_iplus1, z2 + bc_partial + (2,), k[i + 1], p
-                        )
+
+                        if x == 0:
+                            W_iplus1_at_c = SU.DP_eval_MLE(
+                                W_iplus1,
+                                z2 + bc_partial[copy_k[i + 1] :] + (0,),
+                                k[i + 1],
+                                p,
+                            )
+                        elif x == 1:
+                            W_iplus1_at_c = SU.DP_eval_MLE(
+                                W_iplus1,
+                                z2 + bc_partial[copy_k[i + 1] :] + (1,),
+                                k[i + 1],
+                                p,
+                            )
+                        elif x == 2:
+                            W_iplus1_at_c = SU.DP_eval_MLE(
+                                W_iplus1,
+                                z2 + bc_partial[copy_k[i + 1] :] + (2,),
+                                k[i + 1],
+                                p,
+                            )
+                        else:
+                            raise ValueError(
+                                "x must be 0, 1 or 2, but got {}".format(x)
+                            )
                     else:
-                        raise ValueError("x must be 0, 1 or 2, but got {}".format(x))
-
-                    W_iplus1_at_c = Cormode_c[
-                        SU.tuple_to_int(a_gate[copy_k[i] + copy_k[i + 1] :])
-                    ]
-
-                elif copy_k[i + 1] < s < 2 * copy_k[i + 1]:
-                    # b: all FFE c: Cormode, directly retrieve
-                    W_iplus1_at_b = SU.DP_eval_MLE(
-                        W_iplus1, z2 + bc_partial[: copy_k[i + 1]], k[i + 1], p
-                    )
-
-                    if x == 0:
-                        W_iplus1_at_c = Cormode_c_0[
-                            SU.tuple_to_int(a_gate[copy_k[i] + s :])
-                        ]
-                    elif x == 1:
-                        W_iplus1_at_c = Cormode_c_1[
-                            SU.tuple_to_int(a_gate[copy_k[i] + s :])
-                        ]
-                    elif x == 2:
-                        W_iplus1_at_c = Cormode_c_2[
-                            SU.tuple_to_int(a_gate[copy_k[i] + s :])
-                        ]
-                    else:
-                        raise ValueError("x must be 0, 1 or 2, but got {}".format(x))
-
-                elif s == 2 * copy_k[i + 1]:
-                    W_iplus1_at_b = SU.DP_eval_MLE(
-                        W_iplus1, z2 + bc_partial[: copy_k[i + 1]], k[i + 1], p
-                    )
-
-                    if x == 0:
-                        W_iplus1_at_c = SU.DP_eval_MLE(
-                            W_iplus1,
-                            z2 + bc_partial[copy_k[i + 1] :] + (0,),
-                            k[i + 1],
-                            p,
+                        W_iplus1_at_b = 0
+                        W_iplus1_at_c = 0
+                        raise ValueError(
+                            "s must be between 1 and 2*copy_k[i+1], but got {}".format(
+                                s
+                            )
                         )
-                    elif x == 1:
-                        W_iplus1_at_c = SU.DP_eval_MLE(
-                            W_iplus1,
-                            z2 + bc_partial[copy_k[i + 1] :] + (1,),
-                            k[i + 1],
-                            p,
-                        )
-                    elif x == 2:
-                        W_iplus1_at_c = SU.DP_eval_MLE(
-                            W_iplus1,
-                            z2 + bc_partial[copy_k[i + 1] :] + (2,),
-                            k[i + 1],
-                            p,
-                        )
-                    else:
-                        raise ValueError("x must be 0, 1 or 2, but got {}".format(x))
+                # mult gate layer
                 else:
-                    W_iplus1_at_b = 0
-                    W_iplus1_at_c = 0
-                    raise ValueError(
-                        "s must be between 1 and 2*copy_k[i+1], but got {}".format(s)
-                    )
+                    # We update the poly_value under this if for mult gate layer.
+                    if s < copy_k[i + 1]:
+                        if x == 0:
+                            # temp_b_0 is a list of length 2**num_copy
+                            temp_b_0 = Cormode_b_mult_0[
+                                2**num_copy
+                                * SU.tuple_to_int(
+                                    a_gate[copy_k[i] + s : copy_k[i] + copy_k[i + 1]]
+                                ) : 2
+                                ** num_copy
+                                * SU.tuple_to_int(
+                                    a_gate[copy_k[i] + s : copy_k[i] + copy_k[i + 1]]
+                                )
+                                + 2**num_copy
+                            ]
+                            assert (
+                                len(temp_b_0) == 2**num_copy
+                            ), "temp_b_0 must be of length 2**num_copy, but got {}".format(
+                                len(temp_b_0)
+                            )
+                            temp_sum = 0
+                            for temp in range(2**num_copy):
+                                temp_sum += (
+                                    temp_b_0[temp]
+                                    * Cormode_c_mult[
+                                        SU.int_to_bin(temp, num_copy)
+                                        + a_gate[copy_k[i] + copy_k[i + 1] :]
+                                    ]
+                                    * self.get_C()[0][temp]
+                                )
+                            poly_values[x] += temp_sum % p
+                        elif x == 1:
+                            temp_b_1 = Cormode_b_mult_1[
+                                2**num_copy
+                                * SU.tuple_to_int(
+                                    a_gate[copy_k[i] + s : copy_k[i] + copy_k[i + 1]]
+                                ) : 2
+                                ** num_copy
+                                * SU.tuple_to_int(
+                                    a_gate[copy_k[i] + s : copy_k[i] + copy_k[i + 1]]
+                                )
+                                + 2**num_copy
+                            ]
+                            assert (
+                                len(temp_b_1) == 2**num_copy
+                            ), "temp_b_1 must be of length 2**num_copy, but got {}".format(
+                                len(temp_b_1)
+                            )
+                            temp_sum = 0
+                            for temp in range(2**num_copy):
+                                temp_sum += (
+                                    temp_b_1[temp]
+                                    * Cormode_c_mult[
+                                        SU.int_to_bin(temp, num_copy)
+                                        + a_gate[copy_k[i] + copy_k[i + 1] :]
+                                    ]
+                                    * self.get_C()[0][temp]
+                                )
+                            poly_values[x] += temp_sum % p
+                        elif x == 2:
+                            temp_b_2 = Cormode_b_mult_2[
+                                2**num_copy
+                                * SU.tuple_to_int(
+                                    a_gate[copy_k[i] + s : copy_k[i] + copy_k[i + 1]]
+                                ) : 2
+                                ** num_copy
+                                * SU.tuple_to_int(
+                                    a_gate[copy_k[i] + s : copy_k[i] + copy_k[i + 1]]
+                                )
+                                + 2**num_copy
+                            ]
+                            assert (
+                                len(temp_b_2) == 2**num_copy
+                            ), "temp_b_2 must be of length 2**num_copy, but got {}".format(
+                                len(temp_b_2)
+                            )
+                            temp_sum = 0
+                            for temp in range(2**num_copy):
+                                temp_sum += (
+                                    temp_b_2[temp]
+                                    * Cormode_c_mult[
+                                        SU.int_to_bin(temp, num_copy)
+                                        + a_gate[copy_k[i] + copy_k[i + 1] :]
+                                    ]
+                                    * self.get_C()[0][temp]
+                                )
+                            poly_values[x] += temp_sum % p
+                        else:
+                            raise ValueError(
+                                "x must be 0, 1 or 2, but got {}".format(x)
+                            )
+                    elif s == copy_k[i + 1]:
+                        if x == 0:
+                            temp_list = [
+                                SU.DP_eval_MLE(
+                                    W_iplus1,
+                                    SU.int_to_bin(copy_index, num_copy)
+                                    + bc_partial
+                                    + (0,),
+                                    k[i + 1],
+                                    p,
+                                )
+                                for copy_index in range(2**num_copy)
+                            ]
+                            assert (
+                                len(temp_list) == 2**num_copy
+                            ), "temp_list must be of length 2**num_copy, but got {}".format(
+                                len(temp_list)
+                            )
+                            temp_sum = 0
+                            for temp in range(2**num_copy):
+                                temp_sum += (
+                                    temp_list[temp]
+                                    * Cormode_c_mult[SU.int_to_bin(temp, num_copy)]
+                                    * self.get_C()[0][temp]
+                                )
+                            poly_values[x] += temp_sum % p
+                        elif x == 1:
+                            temp_list = [
+                                SU.DP_eval_MLE(
+                                    W_iplus1,
+                                    SU.int_to_bin(copy_index, num_copy)
+                                    + bc_partial
+                                    + (1,),
+                                    k[i + 1],
+                                    p,
+                                )
+                                for copy_index in range(2**num_copy)
+                            ]
+                            assert (
+                                len(temp_list) == 2**num_copy
+                            ), "temp_list must be of length 2**num_copy, but got {}".format(
+                                len(temp_list)
+                            )
+                            temp_sum = 0
+                            for temp in range(2**num_copy):
+                                temp_sum += (
+                                    temp_list[temp]
+                                    * Cormode_c_mult[SU.int_to_bin(temp, num_copy)]
+                                    * self.get_C()[0][temp]
+                                )
+                            poly_values[x] += temp_sum % p
+                        elif x == 2:
+                            temp_list = [
+                                SU.DP_eval_MLE(
+                                    W_iplus1,
+                                    SU.int_to_bin(copy_index, num_copy)
+                                    + bc_partial
+                                    + (2,),
+                                    k[i + 1],
+                                    p,
+                                )
+                                for copy_index in range(2**num_copy)
+                            ]
+                            assert (
+                                len(temp_list) == 2**num_copy
+                            ), "temp_list must be of length 2**num_copy, but got {}".format(
+                                len(temp_list)
+                            )
+                            temp_sum = 0
+                            for temp in range(2**num_copy):
+                                temp_sum += (
+                                    temp_list[temp]
+                                    * Cormode_c_mult[SU.int_to_bin(temp, num_copy)]
+                                    * self.get_C()[0][temp]
+                                )
+                            poly_values[x] += temp_sum % p
+                        else:
+                            raise ValueError(
+                                "x must be 0, 1 or 2, but got {}".format(x)
+                            )
+                    elif copy_k[i + 1] < s < 2 * copy_k[i + 1]:
+                        # b is the same.
+                        b_list = [
+                            SU.DP_eval_MLE(
+                                W_iplus1,
+                                SU.int_to_bin(temp, num_copy)
+                                + bc_partial[: copy_k[i + 1]],
+                                k[i + 1],
+                                p,
+                            )
+                            for temp in range(2**num_copy)
+                        ]
+                        assert len(b_list) == 2**num_copy
+                        # c for different x.
+                        if x == 0:
+                            # temp_c_0 is a list of length 2**num_copy
+                            temp_c_0 = Cormode_c_mult_0[
+                                2**num_copy
+                                * SU.tuple_to_int(a_gate[copy_k[i] + s :]) : 2**num_copy
+                                * SU.tuple_to_int(a_gate[copy_k[i] + s :])
+                                + 2**num_copy
+                            ]
+                            assert (
+                                len(temp_c_0) == 2**num_copy
+                            ), "temp_c_0 must be of length 2**num_copy, but got {}".format(
+                                len(temp_c_0)
+                            )
+                            temp_sum = 0
+                            for temp in range(2**num_copy):
+                                temp_sum += (
+                                    temp_c_0[temp]
+                                    * b_list[SU.int_to_bin(temp, num_copy)]
+                                    * self.get_C()[0][temp]
+                                )
+                            poly_values[x] += temp_sum % p
+                        elif x == 1:
+                            temp_c_1 = Cormode_c_mult_1[
+                                2**num_copy
+                                * SU.tuple_to_int(a_gate[copy_k[i] + s :]) : 2**num_copy
+                                * SU.tuple_to_int(a_gate[copy_k[i] + s :])
+                                + 2**num_copy
+                            ]
+                            assert (
+                                len(temp_c_1) == 2**num_copy
+                            ), "temp_c_1 must be of length 2**num_copy, but got {}".format(
+                                len(temp_c_1)
+                            )
+                            temp_sum = 0
+                            for temp in range(2**num_copy):
+                                temp_sum += (
+                                    temp_c_1[temp]
+                                    * b_list[SU.int_to_bin(temp, num_copy)]
+                                    * self.get_C()[0][temp]
+                                )
+                            poly_values[x] += temp_sum % p
+                        elif x == 2:
+                            temp_c_2 = Cormode_c_mult_2[
+                                2**num_copy
+                                * SU.tuple_to_int(a_gate[copy_k[i] + s :]) : 2**num_copy
+                                * SU.tuple_to_int(a_gate[copy_k[i] + s :])
+                                + 2**num_copy
+                            ]
+                            assert (
+                                len(temp_c_2) == 2**num_copy
+                            ), "temp_c_2 must be of length 2**num_copy, but got {}".format(
+                                len(temp_c_2)
+                            )
+                            temp_sum = 0
+                            for temp in range(2**num_copy):
+                                temp_sum += (
+                                    temp_c_2[temp]
+                                    * b_list[SU.int_to_bin(temp, num_copy)]
+                                    * self.get_C()[0][temp]
+                                )
+                            poly_values[x] += temp_sum % p
+                        else:
+                            raise ValueError(
+                                "x must be 0, 1 or 2, but got {}".format(x)
+                            )
+                    elif s == 2 * copy_k[i + 1]:
+                        # b is the same.
+                        b_list = [
+                            SU.DP_eval_MLE(
+                                W_iplus1,
+                                SU.int_to_bin(temp, num_copy)
+                                + bc_partial[: copy_k[i + 1]],
+                                k[i + 1],
+                                p,
+                            )
+                            for temp in range(2**num_copy)
+                        ]
+                        assert len(b_list) == 2**num_copy
+                        # c for different x.
+                        if x == 0:
+                            # temp_c_0 is a list of length 2**num_copy
+                            temp_c_0 = [
+                                SU.DP_eval_MLE(
+                                    W_iplus1,
+                                    SU.int_to_bin(temp, num_copy)
+                                    + bc_partial[copy_k[i + 1] :]
+                                    + (0,),
+                                    k[i + 1],
+                                    p,
+                                )
+                                for temp in range(2**num_copy)
+                            ]
+                            assert (
+                                len(temp_c_0) == 2**num_copy
+                            ), "temp_c_0 must be of length 2**num_copy, but got {}".format(
+                                len(temp_c_0)
+                            )
+                            temp_sum = 0
+                            for temp in range(2**num_copy):
+                                temp_sum += (
+                                    temp_c_0[temp]
+                                    * b_list[SU.int_to_bin(temp, num_copy)]
+                                    * self.get_C()[0][temp]
+                                )
+                            poly_values[x] += temp_sum % p
+                        elif x == 1:
+                            # temp_c_0 is a list of length 2**num_copy
+                            temp_c_1 = [
+                                SU.DP_eval_MLE(
+                                    W_iplus1,
+                                    SU.int_to_bin(temp, num_copy)
+                                    + bc_partial[copy_k[i + 1] :]
+                                    + (1,),
+                                    k[i + 1],
+                                    p,
+                                )
+                                for temp in range(2**num_copy)
+                            ]
+                            assert (
+                                len(temp_c_1) == 2**num_copy
+                            ), "temp_c_1 must be of length 2**num_copy, but got {}".format(
+                                len(temp_c_1)
+                            )
+                            temp_sum = 0
+                            for temp in range(2**num_copy):
+                                temp_sum += (
+                                    temp_c_1[temp]
+                                    * b_list[SU.int_to_bin(temp, num_copy)]
+                                    * self.get_C()[0][temp]
+                                )
+                            poly_values[x] += temp_sum % p
+                        elif x == 2:
+                            # temp_c_0 is a list of length 2**num_copy
+                            temp_c_2 = [
+                                SU.DP_eval_MLE(
+                                    W_iplus1,
+                                    SU.int_to_bin(temp, num_copy)
+                                    + bc_partial[copy_k[i + 1] :]
+                                    + (0,),
+                                    k[i + 1],
+                                    p,
+                                )
+                                for temp in range(2**num_copy)
+                            ]
+                            assert (
+                                len(temp_c_2) == 2**num_copy
+                            ), "temp_c_2 must be of length 2**num_copy, but got {}".format(
+                                len(temp_c_2)
+                            )
+                            temp_sum = 0
+                            for temp in range(2**num_copy):
+                                temp_sum += (
+                                    temp_c_2[temp]
+                                    * b_list[SU.int_to_bin(temp, num_copy)]
+                                    * self.get_C()[0][temp]
+                                )
+                            poly_values[x] += temp_sum % p
+                        else:
+                            raise ValueError(
+                                "x must be 0, 1 or 2, but got {}".format(x)
+                            )
 
                 if gate_type == "add":
                     poly_values[x] = (
@@ -328,17 +803,17 @@ class Prover(Interactor):
                         )
                         * (W_iplus1_at_b + W_iplus1_at_c)
                     ) % p
-                elif gate_type == "mult":
-                    poly_values[x] = (
-                        poly_values[x]
-                        + SU.chi(
-                            a_gate[: copy_k[i] + s],
-                            z1 + bc_partial + (x,),
-                            copy_k[i] + s,
-                            p,
-                        )
-                        * (W_iplus1_at_b * W_iplus1_at_c)
-                    ) % p
+                # elif gate_type == "mult":
+                #     poly_values[x] = (
+                #         poly_values[x]
+                #         + SU.chi(
+                #             a_gate[: copy_k[i] + s],
+                #             z1 + bc_partial + (x,),
+                #             copy_k[i] + s,
+                #             p,
+                #         )
+                #         * (W_iplus1_at_b * W_iplus1_at_c)
+                #     ) % p
                 # W_iplus1_at_b = SU.DP_eval_MLE(W_iplus1, b, k[i + 1], p)
                 # W_iplus1_at_c = SU.DP_eval_MLE(W_iplus1, c, k[i + 1], p)
                 # gate_type = circ.get_type(i, gate)

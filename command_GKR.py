@@ -94,6 +94,17 @@ def execute(C):
                     i, copy_k[i], num_copy, k[i], copy_k[i + 1]
                 )
             )
+
+        # Now we can calculate C^(0) for every layer. z can be accessed by self.get_random_vector(i). C^(0) can be calculated by reusing_work_chi function.
+        # the number of variables in layer i is num_copy. For now we assume num_copy is constant throughout the circuit.
+        num_copy = prover_inst.get_num_copy()
+        z_2 = prover_inst.get_random_vector(i)[:num_copy]
+        prover_inst.C.append(SU.reusing_work_chi(z_2, num_copy, prover_inst.get_p()))
+        assert (
+            len(prover_inst.get_C()[0]) == 2**num_copy
+        ), "C_0 must have length 2^num_copy, but got {}".format(
+            len(prover_inst.get_C()[0])
+        )
         for s in range(2 * copy_k[i + 1] + 1):
             # s spans from 0 to 2*copy_k[i+1].
             # when s=0, the prover just passes the MLE evaluated at the random vector passed by verifier. This is evident from p34 of the book. Prover needs to first send the sum of binary input of f_i.
