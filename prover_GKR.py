@@ -287,17 +287,17 @@ class Prover(Interactor):
                 ]
 
                 Cormode_c_mult_0 = SU.list_recombination(
-                    cormode_results_0, copy_k[i + 1] - s, p
+                    cormode_results_0, 2 * copy_k[i + 1] - s, p
                 )
                 Cormode_c_mult_1 = SU.list_recombination(
-                    cormode_results_1, copy_k[i + 1] - s, p
+                    cormode_results_1, 2 * copy_k[i + 1] - s, p
                 )
                 Cormode_c_mult_2 = SU.list_recombination(
-                    cormode_results_2, copy_k[i + 1] - s, p
+                    cormode_results_2, 2 * copy_k[i + 1] - s, p
                 )
-                assert len(Cormode_c_mult_0) == 2 ** (num_copy + copy_k[i + 1] - s)
-                assert len(Cormode_c_mult_1) == 2 ** (num_copy + copy_k[i + 1] - s)
-                assert len(Cormode_c_mult_2) == 2 ** (num_copy + copy_k[i + 1] - s)
+                assert len(Cormode_c_mult_0) == 2 ** (num_copy + 2 * copy_k[i + 1] - s)
+                assert len(Cormode_c_mult_1) == 2 ** (num_copy + 2 * copy_k[i + 1] - s)
+                assert len(Cormode_c_mult_2) == 2 ** (num_copy + 2 * copy_k[i + 1] - s)
 
         else:
             pass
@@ -488,6 +488,12 @@ class Prover(Interactor):
                                     ]
                                     * self.get_C()[0][temp]
                                 )
+                            temp_sum = temp_sum * SU.chi(
+                                a_gate[: copy_k[i] + s],
+                                z1 + bc_partial + (x,),
+                                copy_k[i] + s,
+                                p,
+                            )
                             poly_values[x] += temp_sum % p
                         elif x == 1:
                             temp_b_1 = Cormode_b_mult_1[
@@ -516,6 +522,12 @@ class Prover(Interactor):
                                     ]
                                     * self.get_C()[0][temp]
                                 )
+                            temp_sum = temp_sum * SU.chi(
+                                a_gate[: copy_k[i] + s],
+                                z1 + bc_partial + (x,),
+                                copy_k[i] + s,
+                                p,
+                            )
                             poly_values[x] += temp_sum % p
                         elif x == 2:
                             temp_b_2 = Cormode_b_mult_2[
@@ -544,6 +556,12 @@ class Prover(Interactor):
                                     ]
                                     * self.get_C()[0][temp]
                                 )
+                            temp_sum = temp_sum * SU.chi(
+                                a_gate[: copy_k[i] + s],
+                                z1 + bc_partial + (x,),
+                                copy_k[i] + s,
+                                p,
+                            )
                             poly_values[x] += temp_sum % p
                         else:
                             raise ValueError(
@@ -571,9 +589,18 @@ class Prover(Interactor):
                             for temp in range(2**num_copy):
                                 temp_sum += (
                                     temp_list[temp]
-                                    * Cormode_c_mult[SU.int_to_bin(temp, num_copy)]
+                                    * W_iplus1[
+                                        SU.int_to_bin(temp, num_copy)
+                                        + a_gate[copy_k[i] + copy_k[i + 1] :]
+                                    ]
                                     * self.get_C()[0][temp]
                                 )
+                            temp_sum = temp_sum * SU.chi(
+                                a_gate[: copy_k[i] + s],
+                                z1 + bc_partial + (x,),
+                                copy_k[i] + s,
+                                p,
+                            )
                             poly_values[x] += temp_sum % p
                         elif x == 1:
                             temp_list = [
@@ -596,9 +623,18 @@ class Prover(Interactor):
                             for temp in range(2**num_copy):
                                 temp_sum += (
                                     temp_list[temp]
-                                    * Cormode_c_mult[SU.int_to_bin(temp, num_copy)]
+                                    * W_iplus1[
+                                        SU.int_to_bin(temp, num_copy)
+                                        + a_gate[copy_k[i] + copy_k[i + 1] :]
+                                    ]
                                     * self.get_C()[0][temp]
                                 )
+                            temp_sum = temp_sum * SU.chi(
+                                a_gate[: copy_k[i] + s],
+                                z1 + bc_partial + (x,),
+                                copy_k[i] + s,
+                                p,
+                            )
                             poly_values[x] += temp_sum % p
                         elif x == 2:
                             temp_list = [
@@ -621,9 +657,18 @@ class Prover(Interactor):
                             for temp in range(2**num_copy):
                                 temp_sum += (
                                     temp_list[temp]
-                                    * Cormode_c_mult[SU.int_to_bin(temp, num_copy)]
+                                    * W_iplus1[
+                                        SU.int_to_bin(temp, num_copy)
+                                        + a_gate[copy_k[i] + copy_k[i + 1] :]
+                                    ]
                                     * self.get_C()[0][temp]
                                 )
+                            temp_sum = temp_sum * SU.chi(
+                                a_gate[: copy_k[i] + s],
+                                z1 + bc_partial + (x,),
+                                copy_k[i] + s,
+                                p,
+                            )
                             poly_values[x] += temp_sum % p
                         else:
                             raise ValueError(
@@ -660,9 +705,15 @@ class Prover(Interactor):
                             for temp in range(2**num_copy):
                                 temp_sum += (
                                     temp_c_0[temp]
-                                    * b_list[SU.int_to_bin(temp, num_copy)]
+                                    * b_list[temp]
                                     * self.get_C()[0][temp]
                                 )
+                            temp_sum = temp_sum * SU.chi(
+                                a_gate[: copy_k[i] + s],
+                                z1 + bc_partial + (x,),
+                                copy_k[i] + s,
+                                p,
+                            )
                             poly_values[x] += temp_sum % p
                         elif x == 1:
                             temp_c_1 = Cormode_c_mult_1[
@@ -680,9 +731,15 @@ class Prover(Interactor):
                             for temp in range(2**num_copy):
                                 temp_sum += (
                                     temp_c_1[temp]
-                                    * b_list[SU.int_to_bin(temp, num_copy)]
+                                    * b_list[temp]
                                     * self.get_C()[0][temp]
                                 )
+                            temp_sum = temp_sum * SU.chi(
+                                a_gate[: copy_k[i] + s],
+                                z1 + bc_partial + (x,),
+                                copy_k[i] + s,
+                                p,
+                            )
                             poly_values[x] += temp_sum % p
                         elif x == 2:
                             temp_c_2 = Cormode_c_mult_2[
@@ -700,9 +757,15 @@ class Prover(Interactor):
                             for temp in range(2**num_copy):
                                 temp_sum += (
                                     temp_c_2[temp]
-                                    * b_list[SU.int_to_bin(temp, num_copy)]
+                                    * b_list[temp]
                                     * self.get_C()[0][temp]
                                 )
+                            temp_sum = temp_sum * SU.chi(
+                                a_gate[: copy_k[i] + s],
+                                z1 + bc_partial + (x,),
+                                copy_k[i] + s,
+                                p,
+                            )
                             poly_values[x] += temp_sum % p
                         else:
                             raise ValueError(
@@ -744,9 +807,15 @@ class Prover(Interactor):
                             for temp in range(2**num_copy):
                                 temp_sum += (
                                     temp_c_0[temp]
-                                    * b_list[SU.int_to_bin(temp, num_copy)]
+                                    * b_list[temp]
                                     * self.get_C()[0][temp]
                                 )
+                            temp_sum = temp_sum * SU.chi(
+                                a_gate[: copy_k[i] + s],
+                                z1 + bc_partial + (x,),
+                                copy_k[i] + s,
+                                p,
+                            )
                             poly_values[x] += temp_sum % p
                         elif x == 1:
                             # temp_c_0 is a list of length 2**num_copy
@@ -770,9 +839,15 @@ class Prover(Interactor):
                             for temp in range(2**num_copy):
                                 temp_sum += (
                                     temp_c_1[temp]
-                                    * b_list[SU.int_to_bin(temp, num_copy)]
+                                    * b_list[temp]
                                     * self.get_C()[0][temp]
                                 )
+                            temp_sum = temp_sum * SU.chi(
+                                a_gate[: copy_k[i] + s],
+                                z1 + bc_partial + (x,),
+                                copy_k[i] + s,
+                                p,
+                            )
                             poly_values[x] += temp_sum % p
                         elif x == 2:
                             # temp_c_0 is a list of length 2**num_copy
@@ -796,9 +871,15 @@ class Prover(Interactor):
                             for temp in range(2**num_copy):
                                 temp_sum += (
                                     temp_c_2[temp]
-                                    * b_list[SU.int_to_bin(temp, num_copy)]
+                                    * b_list[temp]
                                     * self.get_C()[0][temp]
                                 )
+                            temp_sum = temp_sum * SU.chi(
+                                a_gate[: copy_k[i] + s],
+                                z1 + bc_partial + (x,),
+                                copy_k[i] + s,
+                                p,
+                            )
                             poly_values[x] += temp_sum % p
                         else:
                             raise ValueError(
