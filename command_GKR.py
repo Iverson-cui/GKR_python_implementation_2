@@ -98,7 +98,14 @@ def execute(C):
         # Now we can calculate C^(0) for every layer. z can be accessed by self.get_random_vector(i). C^(0) can be calculated by reusing_work_chi function.
         # the number of variables in layer i is num_copy. For now we assume num_copy is constant throughout the circuit.
         num_copy = prover_inst.get_num_copy()
+        z_1 = prover_inst.get_random_vector(i)[num_copy:]
+        assert (
+            len(z_1) == copy_k[i]
+        ), f"z_1 must have length copy_k[i]={copy_k[i]}, but got {len(z_1)}"
         z_2 = prover_inst.get_random_vector(i)[:num_copy]
+        assert (
+            len(z_2) == num_copy
+        ), f"z_2 must have length num_copy={num_copy}, but got {len(z_2)}"
         prover_inst.C.append(SU.reusing_work_chi(z_2, num_copy, prover_inst.get_p()))
         assert (
             len(prover_inst.get_C()[0]) == 2**num_copy
@@ -129,6 +136,44 @@ def execute(C):
                             i, s, r
                         )
                     )
+        # mult layer, need another num-copy round of sumcheck.
+        if i == d - 1:
+            random_element = prover_inst.get_layer_i_sumcheck_random_elements(i)
+
+            assert (
+                len(random_element) == 2 * copy_k[i + 1]
+            ), f"random_element must have length 2*copy_k[i+1]={2 * copy_k[i + 1]}, but got {len(random_element)}"
+            # iteration for the last num_copy variables
+            # mult value is the same across all of the num_copy sumcheck rounds.
+            mult_value = prover_inst.circ.eval_MLE_mult(i, z_1 + random_element)
+            # z_2_inverse_lst contains the inverse of each element in z_2.
+            z_2_inverse_lst = [
+                SU.finite_field_inverse(z, prover_inst.get_p()) for z in z_2
+            ]
+            for s in range(1, num_copy + 1):
+                prover_msg = prover_inst.partial_sumcheck_mult(
+                    i, s, r, mult_value, z_2[s - 2], z_2_inverse_lst[s - 2]
+                )
+                if DEBUG_INFO:
+                    string_of_prover_msg = "+".join(
+                        ["{}*x^{}".format(prover_msg[l], l) for l in [3, 2, 1, 0]]
+                    )
+                    print(
+                        "at layer {} step {}, the polynomial the prover sends is {}".format(
+                            i, s, string_of_prover_msg
+                        )
+                    )
+
+                # r is the random element used in the next round
+                r = verifier_inst.partial_sumcheck_check_mult(i, s, prover_msg)
+                if DEBUG_INFO:
+                    if s != 0:
+                        print(
+                            "at layer {} step {}, verifier's randomness is {}".format(
+                                i, s, r
+                            )
+                        )
+
         # W_iplus1_with_line is what the prover claims \tilde{W}_i restricted to the line is.
         W_iplus1_with_line = prover_inst.send_Wi_on_line(i, r)
         if DEBUG_INFO:

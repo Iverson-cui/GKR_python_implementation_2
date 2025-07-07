@@ -152,6 +152,9 @@ class Interactor:
         assert type(val) == int, "type of input is not an integer"
         self.evaluations_of_random_vectors.append(val)
 
+    def append_C(self, lst):
+        self.C.append(lst)
+
     def append_RV(self, vec):
         self.random_vectors.append(vec)
 

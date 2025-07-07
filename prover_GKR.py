@@ -983,6 +983,194 @@ class Prover(Interactor):
 
     # NOTE: we're appending the last random element, to fill out the sumcheck random elements. Write in specs!
 
+    def sum_fi_mult(
+        self, layer: int, step: int, mult_value: int, z: int, z_inverse: int
+    ):
+        """
+        This is the sum_fi function specifically for the last num-copy loop of mult layer.
+
+        INPUTS: layer is the number of layer it is in. step is the number of step starting from 1 to num_copy.
+
+        OUTPUTS: this function returns a poly of degree 3 which is different from sum_fi.
+        """
+        p = self.get_p()
+        d = self.get_depth()
+        circ = self.get_circ()
+        num_copy = self.get_num_copy()
+        copy_k = self.get_copy_k()
+
+        assert layer == d - 1, f"layer must be the last layer (d-1), but got {layer}"
+        assert (
+            1 <= step <= num_copy
+        ), f"step must be between 1 and {num_copy}, but got {step}"
+
+        # The already fixed b1 and c1 and part of a2
+        current_random_elements = self.get_layer_i_sumcheck_random_elements(layer)
+
+        assert (
+            len(current_random_elements) == 2 * copy_k[layer] + step - 1
+        ), f"current_random_elements must have length 2*copy_k[{layer}]+step-1 = {2 * copy_k[layer] + step - 1}, but got {len(current_random_elements)}"
+
+        # extract a2 part
+        a_partial = current_random_elements[2 * copy_k[layer] :]
+        # extract b1 and c1 part
+        bc_partial = current_random_elements[: 2 * copy_k[layer]]
+
+        assert (
+            len(a_partial) == step - 1
+        ), f"current_random_elements must have length step-1 = {step - 1}, but got {len(a_partial)}"
+
+        poly_values = [0, 0, 0, 0]  # This is for the mult layer, so we have degree 3.
+        # C_0 is the first array of beta and we are going to append the C list in prover.
+        C_lst = self.get_C()[step - 1]
+        assert step - 1 == len(
+            C_lst
+        ), f"step-1 must be equal to the length of C_lst, but got {step-1} and {len(C_lst)}"
+        assert len(C_lst) == 2 ** (
+            num_copy - step + 1
+        ), f"C must be of length 2^(num_copy-step+1) = {2**(num_copy-step+1)}, but got {len(C_lst)}"
+
+        # function for calculating the W_i+1 values when x and temp is given.
+        def W_iplus1_at_b(x):
+            """
+            Usage:
+            W_iplus1_at_b(x) is a list of length 2**(num_copy-step). In this case we often need x to be 0,1,2,3. W_iplus1_at_b(x)(temp) is the value when x=1 and int temp is given as the remaining part of the input.
+            """
+            temp_lst = [
+                circ.get_W(layer + 1)[
+                    a_partial
+                    + (x,)
+                    + SU.int_to_bin(temp, num_copy - step)
+                    + bc_partial[: copy_k[layer]]
+                ]
+                for temp in 2 ** (num_copy - step)
+            ]
+            return lambda temp: temp_lst[temp]
+
+        def W_iplus1_at_c(x):
+            """
+            Usage:
+            W_iplus1_at_c(x) is a list of length 2**(num_copy-step). In this case we often need x to be 0,1,2,3. W_iplus1_at_c(x)(temp) is the value when x=1 and int temp is given as the remaining part of the input.
+            """
+            temp_lst = [
+                circ.get_W(layer + 1)[
+                    a_partial
+                    + (x,)
+                    + SU.int_to_bin(temp, num_copy - step)
+                    + bc_partial[copy_k[layer] :]
+                ]
+                for temp in 2 ** (num_copy - step)
+            ]
+            return lambda temp: temp_lst[temp]
+
+        for x in range(4):
+            # calculate array beta
+            if x == 0:
+                beta_0 = [
+                    element * z_inverse * (1 - z)
+                    for element in C_lst[len(C_lst) // 2 :]
+                ]
+                sum_temp = 0
+                for temp, beta_val in enumerate(beta_0):
+                    sum_temp += (
+                        mult_value
+                        * beta_val
+                        * W_iplus1_at_b(x)(temp)
+                        * W_iplus1_at_c(x)(temp)
+                    )
+                poly_values[x] = sum_temp % p
+            elif x == 1:
+                beta_1 = [
+                    element * z_inverse * z for element in C_lst[len(C_lst) // 2 :]
+                ]
+                sum_temp = 0
+                for temp, beta_val in enumerate(beta_1):
+                    sum_temp += (
+                        mult_value
+                        * beta_val
+                        * W_iplus1_at_b(x)(temp)
+                        * W_iplus1_at_c(x)(temp)
+                    )
+                poly_values[x] = sum_temp % p
+            elif x == 2:
+                beta_2 = [
+                    element * (1 - z_inverse) * (3 * z - 1)
+                    for element in C_lst[len(C_lst) // 2 :]
+                ]
+                sum_temp = 0
+                for temp, beta_val in enumerate(beta_2):
+                    sum_temp += (
+                        mult_value
+                        * beta_val
+                        * W_iplus1_at_b(x)(temp)
+                        * W_iplus1_at_c(x)(temp)
+                    )
+                poly_values[x] = sum_temp % p
+            elif x == 3:
+                beta_3 = [
+                    element * (1 - z_inverse) * (5 * z - 2)
+                    for element in C_lst[len(C_lst) // 2 :]
+                ]
+                sum_temp = 0
+                for temp, beta_val in enumerate(beta_3):
+                    sum_temp += (
+                        mult_value
+                        * beta_val
+                        * W_iplus1_at_b(x)(temp)
+                        * W_iplus1_at_c(x)(temp)
+                    )
+                poly_values[x] = sum_temp % p
+
+        poly = SU.cubic_interpolate(poly_values, p)
+        return poly
+
+    def partial_sumcheck_mult(
+        self,
+        layer: int,
+        step: int,
+        random_element: int,
+        mult_value: int,
+        z: int,
+        z_inverse: int,
+    ):
+        """
+        This function is specifically for the mult layer, where in parallel settings we need to iterate num_copy layers more in mult layer.
+
+        INPUTS: layer (integer), step (integer), random_element (integer), mult_value (integer). mult-value is the value of wiring predicate mult used in these rounds because when b1 and c1 is fixed, this value is constant.
+        """
+        depth = self.d
+        # k = self.k
+        # copy_k = self.get_copy_k()
+        num_copy = self.get_num_copy()
+        assert (
+            layer == depth - 1
+        ), f"layer must be the last layer (d-1), but got {layer}"
+        assert (
+            1 <= step <= num_copy
+        ), "In parallel settings, in the last num-copy rounds, step must be between 1 and num_copy"
+        # Append the random element to the SRE of this layer
+        # This list of random variables can be later accessed by get_layer_i_sumcheck_random_elements function
+        self.append_element_SRE(layer, random_element)
+
+        # update the array except for step 1.
+        # calculate the next array based on the current array and z_inverse.
+        #
+        if step > 1:
+            latter_half = self.get_C()[-1][len(self.get_C()[-1]) // 2 :]
+            r_j = self.get_layer_i_sumcheck_random_elements(layer)[-1]
+            # Generate new array with the same length as latter_half
+            new_array = [
+                z_inverse * (r_j * z - (1 - r_j) * (1 - z_inverse)) * element
+                for element in latter_half
+            ]
+
+            # Update the C list with the new array
+            self.get_C().append(new_array)
+
+        poly = self.sum_fi_mult(layer, step, mult_value, z, z_inverse)
+        self.append_sumcheck_polynomial(layer, poly)
+        return poly
+
     def send_Wi_on_line(self, i: int, random_element: int):
         """
         send_Wi_on_line

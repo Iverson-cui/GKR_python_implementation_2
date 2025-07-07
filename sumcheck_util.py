@@ -117,6 +117,49 @@ def quadratic_interpolate(values: list, p: int) -> list:
     return answer
 
 
+def cubic_interpolate(values: list, p: int) -> list:
+    """
+    cubic_interpolate
+    INPUT:  values, p
+            values is a list of four integers
+            p is a prime.
+    OUTPUT:
+            answer (list), which is a list of length 4
+            that represents the coefficients of the unique
+            cubic polynomial q such that:
+
+                q(0)=values[0], q(1)=values[1], q(2)=values[2], q(3)=values[3]
+
+            the elements of answer are in increasing degree order (i.e.,
+            the constant coefficient is the first)
+    """
+    assert len(values) == 4, "the list values does not have 4 elements"
+
+    # Using Lagrange interpolation formula for points (0,v0), (1,v1), (2,v2), (3,v3)
+    # The cubic polynomial is: q(x) = sum(values[i] * L_i(x)) for i = 0,1,2,3
+    # where L_i(x) are the Lagrange basis polynomials
+
+    v0, v1, v2, v3 = values
+
+    # Calculate coefficients directly using the Lagrange interpolation formula
+    # For points at x = 0, 1, 2, 3, we can derive the closed form
+
+    # Constant term (coefficient of x^0)
+    a0 = v0 % p
+
+    # Linear term (coefficient of x^1)
+    a1 = (-11 * v0 + 18 * v1 - 9 * v2 + 2 * v3) * pow(6, -1, p) % p
+
+    # Quadratic term (coefficient of x^2)
+    a2 = (6 * v0 - 15 * v1 + 12 * v2 - 3 * v3) * pow(2, -1, p) % p
+
+    # Cubic term (coefficient of x^3)
+    a3 = (-v0 + 3 * v1 - 3 * v2 + v3) * pow(6, -1, p) % p
+
+    answer = [a0, a1, a2, a3]
+    return answer
+
+
 def quadratic_evaluation(g: list, x: int, p: int) -> int:
     """
     quadratic_evaluation
@@ -127,9 +170,22 @@ def quadratic_evaluation(g: list, x: int, p: int) -> int:
     """
     assert (
         len(g) == 3
-    ), "the list of coefficients of the polynomial does not have\
-                        only 3 entries"
+    ), "the list of coefficients of the polynomial does not have only 3 entries"
     return (g[0] + g[1] * x + g[2] * (x**2)) % p
+
+
+def cubic_evaluation(g: list, x: int, p: int) -> int:
+    """
+    cubic_evaluation
+    INPUT: g (list), x, p
+            where g are the coefficients of a cubic polynomial
+            x is an integer, and p is a prime
+    OUTPUT: g(x) mod p
+    """
+    assert (
+        len(g) == 4
+    ), "the list of coefficients of the polynomial does not have only 4 entries"
+    return (g[0] + g[1] * x + g[2] * (x**2) + g[3] * (x**3)) % p
 
 
 def Lagrange_basis(xcoords: list, n: int, p: int) -> list:
