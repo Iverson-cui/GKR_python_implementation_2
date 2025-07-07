@@ -1008,13 +1008,13 @@ class Prover(Interactor):
         current_random_elements = self.get_layer_i_sumcheck_random_elements(layer)
 
         assert (
-            len(current_random_elements) == 2 * copy_k[layer] + step - 1
-        ), f"current_random_elements must have length 2*copy_k[{layer}]+step-1 = {2 * copy_k[layer] + step - 1}, but got {len(current_random_elements)}"
+            len(current_random_elements) == 2 * copy_k[layer + 1] + step - 1
+        ), f"current_random_elements must have length 2*copy_k[{layer+1}]+step-1 = {2 * copy_k[layer + 1] + step - 1}, but got {len(current_random_elements)}"
 
         # extract a2 part
-        a_partial = current_random_elements[2 * copy_k[layer] :]
+        a_partial = current_random_elements[2 * copy_k[layer + 1] :]
         # extract b1 and c1 part
-        bc_partial = current_random_elements[: 2 * copy_k[layer]]
+        bc_partial = current_random_elements[: 2 * copy_k[layer + 1]]
 
         assert (
             len(a_partial) == step - 1
@@ -1023,9 +1023,10 @@ class Prover(Interactor):
         poly_values = [0, 0, 0, 0]  # This is for the mult layer, so we have degree 3.
         # C_0 is the first array of beta and we are going to append the C list in prover.
         C_lst = self.get_C()[step - 1]
-        assert step - 1 == len(
-            C_lst
-        ), f"step-1 must be equal to the length of C_lst, but got {step-1} and {len(C_lst)}"
+        print("self.get_C() = ", self.get_C())
+        assert step == len(
+            self.get_C()
+        ), f"step must be equal to the length of C_lst, but got {step} and {len(C_lst)}"
         assert len(C_lst) == 2 ** (
             num_copy - step + 1
         ), f"C must be of length 2^(num_copy-step+1) = {2**(num_copy-step+1)}, but got {len(C_lst)}"
@@ -1036,14 +1037,18 @@ class Prover(Interactor):
             Usage:
             W_iplus1_at_b(x) is a list of length 2**(num_copy-step). In this case we often need x to be 0,1,2,3. W_iplus1_at_b(x)(temp) is the value when x=1 and int temp is given as the remaining part of the input.
             """
+
             temp_lst = [
-                circ.get_W(layer + 1)[
-                    a_partial
+                SU.DP_eval_MLE(
+                    circ.get_W(layer + 1),
+                    tuple(a_partial)
                     + (x,)
                     + SU.int_to_bin(temp, num_copy - step)
-                    + bc_partial[: copy_k[layer]]
-                ]
-                for temp in 2 ** (num_copy - step)
+                    + tuple(bc_partial[: copy_k[layer + 1]]),
+                    self.get_k()[layer + 1],
+                    p,
+                )
+                for temp in range(2 ** (num_copy - step))
             ]
             return lambda temp: temp_lst[temp]
 
@@ -1053,13 +1058,16 @@ class Prover(Interactor):
             W_iplus1_at_c(x) is a list of length 2**(num_copy-step). In this case we often need x to be 0,1,2,3. W_iplus1_at_c(x)(temp) is the value when x=1 and int temp is given as the remaining part of the input.
             """
             temp_lst = [
-                circ.get_W(layer + 1)[
-                    a_partial
+                SU.DP_eval_MLE(
+                    circ.get_W(layer + 1),
+                    tuple(a_partial)
                     + (x,)
                     + SU.int_to_bin(temp, num_copy - step)
-                    + bc_partial[copy_k[layer] :]
-                ]
-                for temp in 2 ** (num_copy - step)
+                    + tuple(bc_partial[copy_k[layer + 1] :]),
+                    self.get_k()[layer + 1],
+                    p,
+                )
+                for temp in range(2 ** (num_copy - step))
             ]
             return lambda temp: temp_lst[temp]
 

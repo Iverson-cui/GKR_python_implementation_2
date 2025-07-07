@@ -106,12 +106,18 @@ def execute(C):
         assert (
             len(z_2) == num_copy
         ), f"z_2 must have length num_copy={num_copy}, but got {len(z_2)}"
-        prover_inst.C.append(SU.reusing_work_chi(z_2, num_copy, prover_inst.get_p()))
+        if len(prover_inst.get_C()) == 0:
+            prover_inst.append_C(
+                SU.reusing_work_chi(z_2, num_copy, prover_inst.get_p())
+            )
         assert (
             len(prover_inst.get_C()[0]) == 2**num_copy
         ), "C_0 must have length 2^num_copy, but got {}".format(
             len(prover_inst.get_C()[0])
         )
+        assert (
+            len(prover_inst.get_C()) == 1
+        ), "C list must have length 1, but got {}".format(len(prover_inst.get_C()))
         for s in range(2 * copy_k[i + 1] + 1):
             # s spans from 0 to 2*copy_k[i+1].
             # when s=0, the prover just passes the MLE evaluated at the random vector passed by verifier. This is evident from p34 of the book. Prover needs to first send the sum of binary input of f_i.
@@ -141,11 +147,13 @@ def execute(C):
             random_element = prover_inst.get_layer_i_sumcheck_random_elements(i)
 
             assert (
-                len(random_element) == 2 * copy_k[i + 1]
+                len(random_element) == 2 * copy_k[i + 1] - 1
             ), f"random_element must have length 2*copy_k[i+1]={2 * copy_k[i + 1]}, but got {len(random_element)}"
             # iteration for the last num_copy variables
             # mult value is the same across all of the num_copy sumcheck rounds.
-            mult_value = prover_inst.circ.eval_MLE_mult(i, z_1 + random_element)
+            mult_value = prover_inst.circ.eval_MLE_mult(
+                i, z_1 + tuple(random_element) + (r,)
+            )
             # z_2_inverse_lst contains the inverse of each element in z_2.
             z_2_inverse_lst = [
                 SU.finite_field_inverse(z, prover_inst.get_p()) for z in z_2

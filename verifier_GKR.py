@@ -164,34 +164,40 @@ class Verifier(Interactor):
         assert 1 <= step <= num_copy, "step must be between 1 and num_copy"
 
         # last step random element
-        r = self.get_sumcheck_random_element(layer, 2 * copy_k[layer + 1] + step)
+        assert (
+            len(self.get_layer_i_sumcheck_random_elements(layer))
+            == 2 * copy_k[layer + 1] + step - 1
+        ), "the number of random elements the verifier has added to layer {} is not 2*k[i+1]+step-1, which means {} is not {}".format(
+            layer,
+            len(self.get_layer_i_sumcheck_random_elements(layer)),
+            2 * copy_k[layer + 1] + step - 1,
+        )
+        r = self.get_sumcheck_random_element(layer, 2 * copy_k[layer + 1] + step - 1)
         # if step=1, use quadratic evaluation
         if step == 1:
             old_value = SU.quadratic_evaluation(
-                self.get_specific_polynomial(layer, 2 * copy_k[layer + 1] + step),
+                self.get_specific_polynomial(layer, 2 * copy_k[layer + 1] + step - 1),
                 r,
                 p,
             )
         else:
             old_value = SU.cubic_evaluation(
-                self.get_specific_polynomial(layer, 2 * copy_k[layer + 1] + step),
+                self.get_specific_polynomial(layer, 2 * copy_k[layer + 1] + step - 1),
                 r,
                 p,
             )
         # calculate new value
         sum_new_poly_at_0_1 = (
-            SU.quadratic_evaluation(poly, 0, p) + SU.quadratic_evaluation(poly, 1, p)
+            SU.cubic_evaluation(poly, 0, p) + SU.cubic_evaluation(poly, 1, p)
         ) % p
 
         assert (
             sum_new_poly_at_0_1 == old_value % p
-        ), "the check failed at layer {} step {}, {} is not equal to {}. copy_k[i]={},copy_k[i+1]={}".format(
+        ), "the check failed at layer {} step {}, {} is not equal to {}.".format(
             layer,
             step,
             sum_new_poly_at_0_1,
             old_value,
-            copy_k[layer],
-            copy_k[layer + 1],
         )
 
         # verification done. Modify state
@@ -207,7 +213,7 @@ class Verifier(Interactor):
             ), "the number of random elements the verifier has added to layer {} is not 2*k[i+1]+num_copy, which means {} is not {}".format(
                 layer, len(layer_i_random_elements), 2 * copy_k[layer + 1] + num_copy
             )
-        return
+        return new_random_element
 
     def reduce_two_to_one(self, i: int, poly: list):
         """
