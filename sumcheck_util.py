@@ -132,6 +132,20 @@ def cubic_interpolate(values: list, p: int) -> list:
 
             the elements of answer are in increasing degree order (i.e.,
             the constant coefficient is the first)
+    Examples:
+    >>> cubic_interpolate([1, 2, 3, 4], 7)
+    [1, 0, 0, 0]
+    >>> cubic_interpolate([0, 1, 8, 27], 97)
+    [0, 0, 0, 1]
+    >>> cubic_interpolate([0, 1, 4, 9], 97)
+    [0, 0, 1, 0]
+    >>> cubic_interpolate([1, 1, 1, 1], 7)
+    [1, 0, 0, 0]
+    >>> cubic_interpolate([0, 0, 0, 0], 7)
+    [0, 0, 0, 0]
+    >>> cubic_interpolate([1, 3, 5, 7], 11)
+    [1, 2, 0, 0]
+
     """
     assert len(values) == 4, "the list values does not have 4 elements"
 
@@ -151,7 +165,7 @@ def cubic_interpolate(values: list, p: int) -> list:
     a1 = (-11 * v0 + 18 * v1 - 9 * v2 + 2 * v3) * pow(6, -1, p) % p
 
     # Quadratic term (coefficient of x^2)
-    a2 = (6 * v0 - 15 * v1 + 12 * v2 - 3 * v3) * pow(2, -1, p) % p
+    a2 = (6 * v0 - 15 * v1 + 12 * v2 - 3 * v3) * pow(6, -1, p) % p
 
     # Cubic term (coefficient of x^3)
     a3 = (-v0 + 3 * v1 - 3 * v2 + v3) * pow(6, -1, p) % p

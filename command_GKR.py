@@ -160,7 +160,14 @@ def execute(C):
             ]
             for s in range(1, num_copy + 1):
                 prover_msg = prover_inst.partial_sumcheck_mult(
-                    i, s, r, mult_value, z_2[s - 2], z_2_inverse_lst[s - 2]
+                    i,
+                    s,
+                    r,
+                    mult_value,
+                    z_2[s - 1],
+                    z_2_inverse_lst[s - 1],
+                    z_2[s - 2],
+                    z_2_inverse_lst[s - 2],
                 )
                 if DEBUG_INFO:
                     string_of_prover_msg = "+".join(

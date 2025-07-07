@@ -1023,7 +1023,7 @@ class Prover(Interactor):
         poly_values = [0, 0, 0, 0]  # This is for the mult layer, so we have degree 3.
         # C_0 is the first array of beta and we are going to append the C list in prover.
         C_lst = self.get_C()[step - 1]
-        print("self.get_C() = ", self.get_C())
+        # print("self.get_C() = ", self.get_C())
         assert step == len(
             self.get_C()
         ), f"step must be equal to the length of C_lst, but got {step} and {len(C_lst)}"
@@ -1075,9 +1075,10 @@ class Prover(Interactor):
             # calculate array beta
             if x == 0:
                 beta_0 = [
-                    element * z_inverse * (1 - z)
+                    element * z_inverse * (1 - z) % p
                     for element in C_lst[len(C_lst) // 2 :]
                 ]
+                assert len(beta_0) == 2 ** (num_copy - step)
                 sum_temp = 0
                 for temp, beta_val in enumerate(beta_0):
                     sum_temp += (
@@ -1085,11 +1086,12 @@ class Prover(Interactor):
                         * beta_val
                         * W_iplus1_at_b(x)(temp)
                         * W_iplus1_at_c(x)(temp)
+                        % p
                     )
                 poly_values[x] = sum_temp % p
             elif x == 1:
                 beta_1 = [
-                    element * z_inverse * z for element in C_lst[len(C_lst) // 2 :]
+                    element * z_inverse * z % p for element in C_lst[len(C_lst) // 2 :]
                 ]
                 sum_temp = 0
                 for temp, beta_val in enumerate(beta_1):
@@ -1098,11 +1100,12 @@ class Prover(Interactor):
                         * beta_val
                         * W_iplus1_at_b(x)(temp)
                         * W_iplus1_at_c(x)(temp)
+                        % p
                     )
                 poly_values[x] = sum_temp % p
             elif x == 2:
                 beta_2 = [
-                    element * (1 - z_inverse) * (3 * z - 1)
+                    element * (1 - z_inverse) * (3 * z - 1) % p
                     for element in C_lst[len(C_lst) // 2 :]
                 ]
                 sum_temp = 0
@@ -1112,11 +1115,12 @@ class Prover(Interactor):
                         * beta_val
                         * W_iplus1_at_b(x)(temp)
                         * W_iplus1_at_c(x)(temp)
+                        % p
                     )
                 poly_values[x] = sum_temp % p
             elif x == 3:
                 beta_3 = [
-                    element * (1 - z_inverse) * (5 * z - 2)
+                    element * (1 - z_inverse) * (5 * z - 2) % p
                     for element in C_lst[len(C_lst) // 2 :]
                 ]
                 sum_temp = 0
@@ -1126,6 +1130,7 @@ class Prover(Interactor):
                         * beta_val
                         * W_iplus1_at_b(x)(temp)
                         * W_iplus1_at_c(x)(temp)
+                        % p
                     )
                 poly_values[x] = sum_temp % p
 
@@ -1138,8 +1143,10 @@ class Prover(Interactor):
         step: int,
         random_element: int,
         mult_value: int,
-        z: int,
-        z_inverse: int,
+        z_for_beta: int,
+        z_inverse_for_beta: int,
+        z_for_C: int,
+        z_inverse_for_C: int,
     ):
         """
         This function is specifically for the mult layer, where in parallel settings we need to iterate num_copy layers more in mult layer.
@@ -1168,14 +1175,16 @@ class Prover(Interactor):
             r_j = self.get_layer_i_sumcheck_random_elements(layer)[-1]
             # Generate new array with the same length as latter_half
             new_array = [
-                z_inverse * (r_j * z - (1 - r_j) * (1 - z_inverse)) * element
+                z_inverse_for_C
+                * (r_j * z_for_C - (1 - r_j) * (1 - z_inverse_for_C))
+                * element
                 for element in latter_half
             ]
 
             # Update the C list with the new array
             self.get_C().append(new_array)
 
-        poly = self.sum_fi_mult(layer, step, mult_value, z, z_inverse)
+        poly = self.sum_fi_mult(layer, step, mult_value, z_for_beta, z_inverse_for_beta)
         self.append_sumcheck_polynomial(layer, poly)
         return poly
 
