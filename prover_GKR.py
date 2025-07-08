@@ -329,6 +329,7 @@ class Prover(Interactor):
                         * (W_iplus1_at_b + W_iplus1_at_c)
                     ) % p
                 elif gate_type == "mult":
+                    print("mult gate")
                     poly_values[x] = (
                         poly_values[x]
                         + SU.chi(
