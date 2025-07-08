@@ -11,7 +11,7 @@ import os
 # current_dir is the folder which contains the current python file.
 current_dir = os.path.dirname(os.path.abspath(__file__))
 # print("current_dir:", current_dir)
-data_dir = os.path.join(current_dir, "./test_circuit/16_3dconv.csv")
+data_dir = os.path.join(current_dir, "./test_circuit/32_3dconv.csv")
 # file_path = os.path.join(data_dir, "events_semantic.json")
 
 
