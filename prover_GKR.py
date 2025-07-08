@@ -12,7 +12,7 @@ from interactor_GKR import Interactor
 import sumcheck_util as SU
 import circuit
 
-DEBUG_INFO = True
+DEBUG_INFO = False
 
 
 class Prover(Interactor):
@@ -382,7 +382,7 @@ class Prover(Interactor):
 
         assert (
             s >= 0 and s <= 2 * copy_k[i + 1]
-        ), "In parallel settings, step must be between 0 and 2*copy_k_{i+1}"
+        ), f"In parallel settings, step must be between 0 and 2*copy_k_{i+1}. Now s={s}, copy_k_{i+1}={copy_k[i+1]}"
 
         # Now protocol starts. RV_i is the input to the claim at this layer. In detail, every layer, the claim starts with W_i(random vector)=claimed value. RV_i here is the random vector.
         RV_i = self.get_random_vector(i)

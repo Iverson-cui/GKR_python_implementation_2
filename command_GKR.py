@@ -11,7 +11,7 @@ import os
 # current_dir is the folder which contains the current python file.
 current_dir = os.path.dirname(os.path.abspath(__file__))
 # print("current_dir:", current_dir)
-data_dir = os.path.join(current_dir, "./test_circuit/parallel_test.csv")
+data_dir = os.path.join(current_dir, "./test_circuit/16_3dconv.csv")
 # file_path = os.path.join(data_dir, "events_semantic.json")
 
 
@@ -30,8 +30,8 @@ import circuit
 import prover_GKR as P_GKR
 import verifier_GKR as V_GKR
 
-DEBUG_INFO = True
-TIME_INFO = False
+DEBUG_INFO = False
+TIME_INFO = True
 
 
 def execute(C):
@@ -136,7 +136,9 @@ def execute(C):
 
         if TIME_INFO:
             reduce_start_time = time.time()
-        new_random_vector = verifier_inst.reduce_two_to_one(i, W_iplus1_with_line)
+        new_random_vector = verifier_inst.reduce_two_to_one_without_verification(
+            i, W_iplus1_with_line
+        )
         if TIME_INFO:
             reduce_end_time = time.time()
             print(

@@ -157,6 +157,9 @@ class Interactor:
         self.sumcheck_random_elements[i].append(random_element)
 
     def process_SRE_for_parallelism(self, num_layer: int, z_tuple: tuple):
+        """
+        In parallel settings, the sumcheck random elements are of size 2*copy_k[num_layer+1] because there are 2*k[num_layer+1] random elements sent by the verifier. But for further processing, we need to make it 2*k[num_layer+1].
+        """
         assert (
             isinstance(z_tuple, tuple) and len(z_tuple) == self.get_num_copy()
         ), f"z_tuple must be a tuple of length {self.get_num_copy()}, but got {type(z_tuple)} with length {len(z_tuple) if hasattr(z_tuple, '__len__') else 'N/A'}"
@@ -187,10 +190,7 @@ class Interactor:
 
     def compute_line(self, i):
         """
-        at the end of the layer i sumcheck protocol, the verifier is left to ``compute'' or verify two
-        # MLEs: the two input vectors are the first and second half respectively of
-        # sumcheck_random_elements for layer i. Call these two elements b and c.
-        # compute_line returns a function F_p-->F_p^{k[i+1]} that is a line in between these two points.
+        at the end of the layer i sumcheck protocol, the verifier is left to ``compute'' or verify two MLEs: the two input vectors are the first and second half respectively of sumcheck_random_elements for layer i. Call these two elements b and c. compute_line returns a function F_p-->F_p^{k[i+1]} that is a line in between these two points.
         """
         k = self.get_k()
         # copy_k = self.get_copy_k()

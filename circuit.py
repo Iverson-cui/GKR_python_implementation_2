@@ -221,23 +221,28 @@ class Circuit:
         """
 
         # mult_i = self.get_add_and_mult(i)[1]
-        k = self.get_k()
+        # k = self.get_k()
         p = self.get_p()
         N = self.copy_k[i] + 2 * self.copy_k[i + 1]
         assert N == len(
             x
         ), f"length of vector is not correct, expected {N} but got {len(x)}"
         answer = 0
+        if i == self.get_depth() - 1:
+            # self.get_copy_k()[i + 1] = self.get_k()[i + 1]
+            N = self.get_copy_k()[i] + 2 * self.get_k()[i + 1]
         for gate in range(2 ** self.copy_k[i]):
             if self.get_type(i, gate) == "mult":
                 first_input, second_input = self.get_inputs(i, gate)
 
                 w = (
                     SU.int_to_bin(gate, self.copy_k[i])
-                    + SU.int_to_bin(first_input, self.copy_k[i + 1])
-                    + SU.int_to_bin(second_input, self.copy_k[i + 1])
+                    + SU.int_to_bin(first_input, self.k[i + 1])
+                    + SU.int_to_bin(second_input, self.k[i + 1])
                 )
 
+                # now w is of length copy_k[i]+2*copy_k[i+1]
+                # N equals copy_k[i]+2*copy_k[i+1]
                 answer = (answer + SU.chi(w, x, N, p)) % p
         return answer
 

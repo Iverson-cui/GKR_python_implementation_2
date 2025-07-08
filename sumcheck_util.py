@@ -29,7 +29,7 @@ def int_to_bin(i: int, d: int) -> tuple:
     if i < 0 or 2**d < i:
         print("out of bounds, i={}".format(i))
     #        return tuple([])
-    assert i >= 0 and i <= 2**d
+    assert i >= 0 and i <= 2**d, "i={} is out of bounds for d={}".format(i, d)
 
     # bin(5)='0b101', bin(5)[2:] = '101'
     str_bin = bin(i)[2:]  # bin = '0b...'

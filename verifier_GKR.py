@@ -18,8 +18,8 @@ import circuit
 import time
 from interactor_GKR import Interactor
 
-DEBUG_INFO = True
-TIME_INFO = False
+DEBUG_INFO = False
+TIME_INFO = True
 
 
 class Verifier(Interactor):
@@ -186,6 +186,7 @@ class Verifier(Interactor):
         SRE_layer_i = self.get_layer_i_sumcheck_random_elements(i)
         self.process_SRE_for_parallelism(i, z_tuple[: -copy_k[i]])
         self.append_line(self.compute_line(i))
+        # bstar and cstar is the input of W_i function for verification.
         bstar = tuple(SRE_layer_i[: k[i + 1]])
         cstar = tuple(SRE_layer_i[k[i + 1] :])
         RV_i = tuple(self.get_random_vector(i))
@@ -262,6 +263,25 @@ class Verifier(Interactor):
         AFTER:
         Now we know it's just a bug causing empty loop to drag time. When the bug is fixed, there is no need to call this function.
         """
+        p = self.get_p()
+        # k = self.get_k()
+        # circ = self.get_circ()
+        copy_k = self.get_copy_k()
+        z_tuple = self.get_random_vector(i)
+        # The verifier needs to get the poly evaluated at 0 and 1 cause they are the claimed value of the prover
+        # if TIME_INFO:
+        #     poly_start_time = time.time()
+        # vals = [SU.polynomial_evaluation(poly, i, p) for i in range(2)]
+        # if TIME_INFO:
+        #     poly_end_time = time.time()
+        #     print(
+        #         "Time for layer {} poly evaluation: {}".format(
+        #             i, poly_end_time - poly_start_time
+        #         )
+        #     )
+        # SRE_layer_i = self.get_layer_i_sumcheck_random_elements(i)
+        self.process_SRE_for_parallelism(i, z_tuple[: -copy_k[i]])
+        self.append_line(self.compute_line(i))
         p = self.get_p()
         line = self.get_line(i)
         final_random_element_in_layer = np.random.randint(0, p)
