@@ -221,7 +221,7 @@ class Circuit:
         """
 
         # mult_i = self.get_add_and_mult(i)[1]
-        k = self.get_k()
+        # k = self.get_k()
         p = self.get_p()
         N = self.copy_k[i] + 2 * self.copy_k[i + 1]
         assert N == len(

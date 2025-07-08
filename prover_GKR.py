@@ -1031,6 +1031,8 @@ class Prover(Interactor):
             num_copy - step + 1
         ), f"C must be of length 2^(num_copy-step+1) = {2**(num_copy-step+1)}, but got {len(C_lst)}"
 
+        # Calculation of C is correct by verification.
+
         # function for calculating the W_i+1 values when x and temp is given.
         def W_iplus1_at_b(x):
             """
@@ -1075,34 +1077,58 @@ class Prover(Interactor):
             # calculate array beta
             if x == 0:
                 beta_0 = [
-                    element * z_inverse * (1 - z) % p
+                    (element * z_inverse * ((1 - z) % p)) % p
                     for element in C_lst[len(C_lst) // 2 :]
                 ]
                 assert len(beta_0) == 2 ** (num_copy - step)
                 sum_temp = 0
+                # assert W_iplus1_at_b(x)(0) == SU.DP_eval_MLE(
+                #     circ.get_W(layer + 1),
+                #     (
+                #         0,
+                #         0,
+                #     )
+                #     + tuple(bc_partial[: copy_k[layer + 1]]),
+                #     self.get_k()[layer + 1],
+                #     p,
+                # )
+                # assert W_iplus1_at_c(x)(0) == SU.DP_eval_MLE(
+                #     circ.get_W(layer + 1),
+                #     (
+                #         1,
+                #         1,
+                #     )
+                #     + tuple(bc_partial[copy_k[layer + 1] :]),
+                #     self.get_k()[layer + 1],
+                #     p,
+                # )
                 for temp, beta_val in enumerate(beta_0):
-                    sum_temp += (
-                        mult_value
-                        * beta_val
-                        * W_iplus1_at_b(x)(temp)
-                        * W_iplus1_at_c(x)(temp)
-                        % p
-                    )
-                poly_values[x] = sum_temp % p
+                    sum_temp = (
+                        sum_temp
+                        + (
+                            mult_value
+                            * beta_val
+                            * W_iplus1_at_b(x)(temp)
+                            * W_iplus1_at_c(x)(temp)
+                        )
+                    ) % p
+                poly_values[x] = sum_temp
             elif x == 1:
                 beta_1 = [
                     element * z_inverse * z % p for element in C_lst[len(C_lst) // 2 :]
                 ]
                 sum_temp = 0
                 for temp, beta_val in enumerate(beta_1):
-                    sum_temp += (
-                        mult_value
-                        * beta_val
-                        * W_iplus1_at_b(x)(temp)
-                        * W_iplus1_at_c(x)(temp)
-                        % p
-                    )
-                poly_values[x] = sum_temp % p
+                    sum_temp = (
+                        sum_temp
+                        + (
+                            mult_value
+                            * beta_val
+                            * W_iplus1_at_b(x)(temp)
+                            * W_iplus1_at_c(x)(temp)
+                        )
+                    ) % p
+                poly_values[x] = sum_temp
             elif x == 2:
                 beta_2 = [
                     element * (1 - z_inverse) * (3 * z - 1) % p
@@ -1110,14 +1136,16 @@ class Prover(Interactor):
                 ]
                 sum_temp = 0
                 for temp, beta_val in enumerate(beta_2):
-                    sum_temp += (
-                        mult_value
-                        * beta_val
-                        * W_iplus1_at_b(x)(temp)
-                        * W_iplus1_at_c(x)(temp)
-                        % p
-                    )
-                poly_values[x] = sum_temp % p
+                    sum_temp = (
+                        sum_temp
+                        + (
+                            mult_value
+                            * beta_val
+                            * W_iplus1_at_b(x)(temp)
+                            * W_iplus1_at_c(x)(temp)
+                        )
+                    ) % p
+                poly_values[x] = sum_temp
             elif x == 3:
                 beta_3 = [
                     element * (1 - z_inverse) * (5 * z - 2) % p
@@ -1125,14 +1153,16 @@ class Prover(Interactor):
                 ]
                 sum_temp = 0
                 for temp, beta_val in enumerate(beta_3):
-                    sum_temp += (
-                        mult_value
-                        * beta_val
-                        * W_iplus1_at_b(x)(temp)
-                        * W_iplus1_at_c(x)(temp)
-                        % p
-                    )
-                poly_values[x] = sum_temp % p
+                    sum_temp = (
+                        sum_temp
+                        + (
+                            mult_value
+                            * beta_val
+                            * W_iplus1_at_b(x)(temp)
+                            * W_iplus1_at_c(x)(temp)
+                        )
+                    ) % p
+                poly_values[x] = sum_temp
 
         poly = SU.cubic_interpolate(poly_values, p)
         return poly
