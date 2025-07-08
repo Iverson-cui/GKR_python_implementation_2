@@ -356,7 +356,7 @@ class Prover(Interactor):
         poly = SU.quadratic_interpolate(poly_values, p)
         return poly
 
-    def partial_sumcheck(self, i: int, s: int, random_element: int, num_copy: int):
+    def partial_sumcheck(self, i: int, s: int, random_element: int):
         """
         partial_sumcheck
         INPUT: i (integer), s (integer), random_element (integer)
