@@ -43,12 +43,13 @@ class Circuit:
     explained above this function.
     """
 
-    def __init__(self, d: int, k: list, p: int, num_copy: int):
+    def __init__(self, d: int, k: list, p: int, num_copy: list):
         assert d == len(k) - 1, "depth is not the same as the length of the list k"
         self.L = [dict() for i in range(d + 1)]
         self.k = copy.deepcopy(k)
         self.num_copy = num_copy
-        self.copy_k = [x - num_copy for x in k]
+        # copy_k is the list of copy numbers in each layer.
+        self.copy_k = [x - num_copy[i] for i, x in enumerate(k)]
         self.d = d
         self.p = p
 
@@ -419,7 +420,7 @@ def build_random_circuit_of_depth_d(d, max_k, max_input, p):
     return C
 
 
-def createCircuit(fileName: str, num_copy: int, p: int) -> Circuit:
+def createCircuit(fileName: str, num_copy: list, p: int) -> Circuit:
     """createCircuit takes in a file name and a prime and returns a circuit.
 
     The file must be in the following format.

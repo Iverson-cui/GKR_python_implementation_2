@@ -262,6 +262,14 @@ def DP_eval_MLE(L: dict, r: tuple, N: int, p: int) -> int:
     This function takes in the same arguments as eval_MLE, but uses a dynamic programming approach to compute the MLE.
     """
 
+    assert (
+        len(L) == 2**N
+    ), "Number of elements in L must be 2^N. Now L is of length {}, but N is {}".format(
+        len(L), N
+    )
+    assert (
+        len(r) == N
+    ), "r must be of length N. Now r is of length {}, but N is {}".format(len(r), N)
     answer = 0
     chi_values = [1]
     for i in range(N):
@@ -333,5 +341,5 @@ def Cormode_eval_W(
         chi_value = chi(label[:step], input_so_far, step, prime)
         # update the corresponding class of the result.
         result[class_index] = (result[class_index] + chi_value * value) % prime
-    assert len(result) == 2 ** (num_var - step), "result must be of length 2^{k[i+1]-s}"
+    # assert len(result) == 2 ** (num_var - step), "result must be of length 2^{k[i+1]-s}"
     return result

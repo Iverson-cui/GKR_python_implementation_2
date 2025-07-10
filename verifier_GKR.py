@@ -18,8 +18,8 @@ import circuit
 import time
 from interactor_GKR import Interactor
 
-DEBUG_INFO = False
-TIME_INFO = True
+DEBUG_INFO = True
+TIME_INFO = False
 
 
 class Verifier(Interactor):
@@ -170,7 +170,7 @@ class Verifier(Interactor):
         p = self.get_p()
         k = self.get_k()
         circ = self.get_circ()
-        copy_k = self.get_copy_k()
+        copy_k = circ.get_copy_k()
         z_tuple = self.get_random_vector(i)
         # The verifier needs to get the poly evaluated at 0 and 1 cause they are the claimed value of the prover
         if TIME_INFO:
@@ -264,9 +264,9 @@ class Verifier(Interactor):
         Now we know it's just a bug causing empty loop to drag time. When the bug is fixed, there is no need to call this function.
         """
         p = self.get_p()
-        # k = self.get_k()
-        # circ = self.get_circ()
-        copy_k = self.get_copy_k()
+        k = self.get_k()
+        circ = self.get_circ()
+        copy_k = circ.get_copy_k()
         z_tuple = self.get_random_vector(i)
         # The verifier needs to get the poly evaluated at 0 and 1 cause they are the claimed value of the prover
         # if TIME_INFO:
@@ -280,7 +280,7 @@ class Verifier(Interactor):
         #         )
         #     )
         # SRE_layer_i = self.get_layer_i_sumcheck_random_elements(i)
-        self.process_SRE_for_parallelism(i, z_tuple[: -copy_k[i]])
+        self.process_SRE_for_parallelism(i, z_tuple[: k[i + 1] - copy_k[i + 1]])
         self.append_line(self.compute_line(i))
         p = self.get_p()
         line = self.get_line(i)

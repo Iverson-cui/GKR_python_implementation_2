@@ -12,7 +12,7 @@ from interactor_GKR import Interactor
 import sumcheck_util as SU
 import circuit
 
-DEBUG_INFO = False
+DEBUG_INFO = True
 
 
 class Prover(Interactor):
@@ -76,8 +76,8 @@ class Prover(Interactor):
         d = circ.get_depth()
         p = circ.get_p()
         k = circ.get_k()
-        copy_k = self.get_copy_k()
-        num_copy = k[0] - copy_k[0]
+        copy_k = circ.get_copy_k()
+        num_copy = circ.get_num_copy()
         assert i >= 0 and i < d, "i is out of bounds"
         assert i < len(self.get_random_vectors()), "haven't reached this layer yet"
         # the partial sumcheck function address the case of s=0.
@@ -125,10 +125,10 @@ class Prover(Interactor):
         # z = tuple(self.get_random_vector(i)) + bc
         # W_iplus1 is a dictionary that takes in k[i+1] bits.
         W_iplus1 = circ.get_W(i + 1)
-        # z1 is the gate random, z1 is of length copy_k[i].
-        z1 = self.get_random_vector(i)[-copy_k[i] :]
-        # z2 is the copy random, z2 is of length k[i] - copy_k[i].
-        z2 = self.get_random_vector(i)[: -copy_k[i]]
+        # z1 is the gate random, z1 is of length copy_k[i+1].
+        # z1 = self.get_random_vector(i)[num_copy[i + 1] :]
+        # z2 is the copy random, z2 is of length num_copy[i + 1] because it acts as the input to the copy bits of W_i+1
+        z2 = self.get_random_vector(i)[: num_copy[i + 1]]
         # Initialize variables that might be used later
         Cormode_b_0 = None
         Cormode_b_1 = None
@@ -143,24 +143,20 @@ class Prover(Interactor):
             # b: Cormode c: all binary, directly retrieve
             # Cormode_b takes in length copy_k[i+1]-s
             Cormode_b_0 = SU.Cormode_eval_W(
-                W_iplus1, z2 + bc_partial + (0,), s + num_copy, k[i + 1], p
+                W_iplus1, z2 + bc_partial + (0,), s + num_copy[i + 1], k[i + 1], p
             )
             Cormode_b_1 = SU.Cormode_eval_W(
-                W_iplus1, z2 + bc_partial + (1,), s + num_copy, k[i + 1], p
+                W_iplus1, z2 + bc_partial + (1,), s + num_copy[i + 1], k[i + 1], p
             )
             Cormode_b_2 = SU.Cormode_eval_W(
-                W_iplus1, z2 + bc_partial + (2,), s + num_copy, k[i + 1], p
+                W_iplus1, z2 + bc_partial + (2,), s + num_copy[i + 1], k[i + 1], p
             )
             # Cormode_c can be optimized. when s<copy_k[i+1], Cormode_c is always the same. But Now I have no idea how to optimize it.
             # Cormode_c takes in length copy_k[i+1]
-            Cormode_c = SU.Cormode_eval_W(
-                W_iplus1, z2, k[i + 1] - copy_k[i + 1], k[i + 1], p
-            )
+            Cormode_c = SU.Cormode_eval_W(W_iplus1, z2, num_copy[i + 1], k[i + 1], p)
         # Second case, s == copy_k[i + 1]. b is calculated by MLE eval, while c is calculated with the same Cormode as above.
         elif s == copy_k[i + 1]:
-            Cormode_c = SU.Cormode_eval_W(
-                W_iplus1, z2, k[i + 1] - copy_k[i + 1], k[i + 1], p
-            )
+            Cormode_c = SU.Cormode_eval_W(W_iplus1, z2, num_copy[i + 1], k[i + 1], p)
         # Third case, B is still calculated by MLE, C is calculated by Cormode per step.
         elif copy_k[i + 1] < s < 2 * copy_k[i + 1]:
             partial_input_to_c_0 = z2 + bc_partial[copy_k[i + 1] : s - 1] + (0,)
@@ -169,21 +165,21 @@ class Prover(Interactor):
             Cormode_c_0 = SU.Cormode_eval_W(
                 W_iplus1,
                 partial_input_to_c_0,
-                s + num_copy - copy_k[i + 1],
+                s + num_copy[i + 1] - copy_k[i + 1],
                 k[i + 1],
                 p,
             )
             Cormode_c_1 = SU.Cormode_eval_W(
                 W_iplus1,
                 partial_input_to_c_1,
-                s + num_copy - copy_k[i + 1],
+                s + num_copy[i + 1] - copy_k[i + 1],
                 k[i + 1],
                 p,
             )
             Cormode_c_2 = SU.Cormode_eval_W(
                 W_iplus1,
                 partial_input_to_c_2,
-                s + num_copy - copy_k[i + 1],
+                s + num_copy[i + 1] - copy_k[i + 1],
                 k[i + 1],
                 p,
             )
@@ -203,12 +199,13 @@ class Prover(Interactor):
             )
             # a is composed of: num_copy+copy_k[i]+num_copy+copy_k[i+1]+num_copy+copy_k[i+1] bits.
             # a_gate is used to specifically extract out the gate label of the 3 gates.
-            # a_gate is of length copy_k[i] + 2 * copy_k[i + 1].
+            # a_gate contains 3 gate labels. The first is conformed to copy assignment in the i-th layer, the latter two is conformed to copy_assignment in the i+1-th layer.
             a_gate = (
-                a[num_copy : k[i]]
-                + a[k[i] + num_copy : k[i] + k[i + 1]]
-                + a[k[i] + k[i + 1] + num_copy :]
+                a[num_copy[i] : k[i]]
+                + a[k[i] + num_copy[i + 1] : k[i] + k[i + 1]]
+                + a[k[i] + k[i + 1] + num_copy[i + 1] :]
             )
+            assert len(a_gate) == copy_k[i] + 2 * copy_k[i + 1]
             for x in range(3):
 
                 # No matter in which case, we all get poly_values[x] filled
@@ -322,7 +319,9 @@ class Prover(Interactor):
                         poly_values[x]
                         + SU.chi(
                             a_gate[: copy_k[i] + s],
-                            z1 + bc_partial + (x,),
+                            self.get_random_vector(i)[num_copy[i] :]
+                            + bc_partial
+                            + (x,),
                             copy_k[i] + s,
                             p,
                         )
@@ -334,7 +333,9 @@ class Prover(Interactor):
                         poly_values[x]
                         + SU.chi(
                             a_gate[: copy_k[i] + s],
-                            z1 + bc_partial + (x,),
+                            self.get_random_vector(i)[num_copy[i] :]
+                            + bc_partial
+                            + (x,),
                             copy_k[i] + s,
                             p,
                         )
@@ -377,7 +378,7 @@ class Prover(Interactor):
         """
         d = self.d
         # k = self.k
-        copy_k = self.get_copy_k()
+        copy_k = self.get_circ().get_copy_k()
         assert i >= 0 and i < d, "i is out of bounds"
 
         assert (
@@ -436,13 +437,13 @@ class Prover(Interactor):
         z_tuple = self.get_random_vector(i)
         p = self.get_p()
         k = self.get_k()
-        copy_k = self.get_copy_k()
+        copy_k = self.get_circ().get_copy_k()
         # num_copy = self.get_num_copy()
 
         # After appending, there are only 2*copy_k[i+1] elements in the SRE.
         self.append_element_SRE(i, random_element)
         # We need to expand it to 2*k[i+1]
-        self.process_SRE_for_parallelism(i, z_tuple[: -copy_k[i]])
+        self.process_SRE_for_parallelism(i, z_tuple[: k[i + 1] - copy_k[i + 1]])
         # line is a function taking input an integer.
         line = self.compute_line(i)
         self.append_line(line)

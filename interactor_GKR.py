@@ -161,8 +161,9 @@ class Interactor:
         In parallel settings, the sumcheck random elements are of size 2*copy_k[num_layer+1] because there are 2*k[num_layer+1] random elements sent by the verifier. But for further processing, we need to make it 2*k[num_layer+1].
         """
         assert (
-            isinstance(z_tuple, tuple) and len(z_tuple) == self.get_num_copy()
-        ), f"z_tuple must be a tuple of length {self.get_num_copy()}, but got {type(z_tuple)} with length {len(z_tuple) if hasattr(z_tuple, '__len__') else 'N/A'}"
+            isinstance(z_tuple, tuple)
+            and len(z_tuple) == self.get_num_copy()[num_layer + 1]
+        ), f"z_tuple must be a tuple of length {self.get_num_copy()[num_layer + 1]}, but got {type(z_tuple)} with length {len(z_tuple) if hasattr(z_tuple, '__len__') else 'N/A'}"
         # In parallelism settings, the random element needs to be further processed.
         length = len(self.sumcheck_random_elements[num_layer])
 
