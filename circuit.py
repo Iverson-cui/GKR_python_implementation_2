@@ -54,6 +54,8 @@ class Circuit:
         self.copy_k = [x - num_copy[i] for i, x in enumerate(k)]
         self.d = d
         self.p = p
+        # fan_in is hard coded for now.
+        self.fan_in = [4, 16, 2]
 
     def deepcopy(self):
         C = Circuit(
@@ -117,20 +119,28 @@ class Circuit:
 
     def get_inputs(self, i, gate):
         """
-        Inputs are the same with get_type, this time return the list of the input gates.
+        Inputs are the same with get_type, this time return the list of the input gates. The list is of length self.fan_in[i], where self.fan_in[i] is the number of inputs to a gate in layer i.
         """
         # d = self.get_depth()
         # assert i < d, "layer must be a non-input layer of the circuit"
         Di = self.get_layer(i)
         assert gate in Di, "gate is not in the input layer you picked"
+        assert (
+            len(Di[gate][1]) == self.fan_in[i + 1]
+        ), f"Gate {gate} in layer {i} should have {self.fan_in[i + 1]} inputs, but has {len(Di[gate][1])}"
         return Di[gate][1]
 
     def get_input_values(self, i, gate):
         """
         Inputs are the same with get_type, this time return the list of the output values of the input gates of given gate in layer i.
         """
-        input_gate1, input_gate2 = self.get_inputs(i, gate)
-        return self.get_value(i + 1, input_gate1), self.get_value(i + 1, input_gate2)
+        # input_gate = []
+        input_gate = self.get_inputs(i, gate)
+        input_value = [0] * self.fan_in[i + 1]
+        for j in range(self.fan_in[i + 1]):
+            # input_gate[j] = self.get_value(i + 1, input_gate[j])
+            input_value[j] = self.get_value(i + 1, input_gate[j])
+        return input_value
 
     def get_add_and_mult(self, i):
         """get_add_and_mult is a method that takes in a (non-input) layer and returns 2 dictionaries:
@@ -303,14 +313,14 @@ class Circuit:
             ], "one of the values has an invalid gate type"
             # info[1] is the gate inputs.
             # we hard code that layer 0 has 4 inputs, layer 1 has 16 inputs, and all other layers have 2 inputs.
-            if i == 0:
-                fan_in = 4
-            elif i == 1:
-                fan_in = 16
-            else:
-                fan_in = 2
+            # if i == 0:
+            #     fan_in = 4
+            # elif i == 1:
+            #     fan_in = 16
+            # else:
+            #     fan_in = 2
             assert (
-                len(info[1]) == fan_in
+                len(info[1]) == self.fan_in[i]
                 and 0 <= info[1][0] < 2 ** k[i + 1]
                 and 0 <= info[1][1] < 2 ** k[i + 1]
             ), "there is a problem with the input gate numbering for layer {}, gate inputs are {}, but should be in range [0, {}]".format(
@@ -362,11 +372,12 @@ class Circuit:
         # iterate through every gate in layer i to compute its value.
         for gate in Di.keys():
             if self.get_type(i, gate) == "add":
-                input_value1, input_value2 = self.get_input_values(i, gate)
-                self.place_value(i, gate, (input_value1 + input_value2) % p)
+                input_values = self.get_input_values(i, gate)
+                sum_of_inputs = sum(input_values)
+                self.place_value(i, gate, (sum_of_inputs) % p)
             elif self.get_type(i, gate) == "mult":
-                input_value1, input_value2 = self.get_input_values(i, gate)
-                self.place_value(i, gate, (input_value1 * input_value2) % p)
+                input_values = self.get_input_values(i, gate)
+                self.place_value(i, gate, (input_values[0] * input_values[1]) % p)
 
     # compute_circuit simply computes fills in all the values of the circuit layer by layer, using
     # compute layer
@@ -460,34 +471,35 @@ def createCircuit(fileName: str, num_copy: list, p: int) -> Circuit:
         ), "the {}th line of the document does not start with {}".format(i, i)
         numGates = int(line[1])
 
-        if i == 0:
-            fan_in = 4
-            gateInput = [0] * 4
-        elif i == 1:
-            fan_in = 16
-            gateInput = [0] * 16
-        else:
-            fan_in = 2
-            gateInput = [0] * 2
+        # if i == 0:
+        #     fan_in = 4
+        #     gateInput = [0] * 4
+        # elif i == 1:
+        #     fan_in = 16
+        #     gateInput = [0] * 16
+        # else:
+        #     fan_in = 2
+        #     gateInput = [0] * 2
+        gateInput = [0] * C.fan_in[i]
         # Add validation for non-input layer
         expected_columns = (
-            2 + (fan_in + 1) * numGates
+            2 + (C.fan_in[i] + 1) * numGates
         )  # For non-input layer: each gate needs 3 columns
         if len(line) != expected_columns:
             raise ValueError(
-                f"Line {i} claims {numGates} gates but has {(len(line)-2)/fan_in} gates, {len(line)} columns, need {expected_columns}"
+                f"Line {i} claims {numGates} gates but has {(len(line)-2)/C.fan_in[i]} gates, {len(line)} columns, need {expected_columns}"
             )
 
         layer = {}
         for j in range(numGates):
-            gateType = line[2 + (fan_in + 1) * j].strip()
+            gateType = line[2 + (C.fan_in[i] + 1) * j].strip()
 
             assert gateType in [
                 "mult",
                 "add",
             ], "The only allowable gates are mult and add"
-            for temp in range(fan_in):
-                gateInput[temp] = int(line[2 + (fan_in + 1) * j + (temp + 1)])
+            for temp in range(C.fan_in[i]):
+                gateInput[temp] = int(line[2 + (C.fan_in[i] + 1) * j + (temp + 1)])
             # gateInput1 = int(line[2 + 3 * j + 1])
             # gateInput2 = int(line[2 + 3 * j + 2])
 
