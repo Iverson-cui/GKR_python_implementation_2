@@ -213,6 +213,12 @@ def chi(a: tuple, z: tuple, N: int, p: int):
 
     N here is the input length, i.e., the number of variables in the boolean hypercube.
     """
+    assert (
+        len(a) == N and len(z) == N
+    ), "a and z must both be of length N. Now a is of length {} and z is of length {}, while N={}".format(
+        len(a), len(z), N
+    )
+
     answer = 1
     for i in range(N):
         next_term = a[i] * z[i] + (1 - a[i]) * (1 - z[i]) % p

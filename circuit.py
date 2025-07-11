@@ -205,13 +205,15 @@ class Circuit:
         for gate in range(2 ** self.copy_k[i]):
             if self.get_type(i, gate) == "add":
 
-                first_input, second_input = self.get_inputs(i, gate)
+                whole_first_input, whole_second_input = self.get_inputs(i, gate)
+                first_input = SU.int_to_bin(whole_first_input, self.k[i + 1])[
+                    self.get_num_copy()[i + 1] :
+                ]
+                second_input = SU.int_to_bin(whole_second_input, self.k[i + 1])[
+                    self.get_num_copy()[i + 1] :
+                ]
 
-                w = (
-                    SU.int_to_bin(gate, self.copy_k[i])
-                    + SU.int_to_bin(first_input, self.copy_k[i + 1])
-                    + SU.int_to_bin(second_input, self.copy_k[i + 1])
-                )
+                w = SU.int_to_bin(gate, self.copy_k[i]) + first_input + second_input
 
                 answer = (answer + SU.chi(w, x, N, p)) % p
         return answer
@@ -234,16 +236,17 @@ class Circuit:
             N = self.get_copy_k()[i] + 2 * self.get_k()[i + 1]
         for gate in range(2 ** self.copy_k[i]):
             if self.get_type(i, gate) == "mult":
-                first_input, second_input = self.get_inputs(i, gate)
 
-                w = (
-                    SU.int_to_bin(gate, self.copy_k[i])
-                    + SU.int_to_bin(first_input, self.k[i + 1])
-                    + SU.int_to_bin(second_input, self.k[i + 1])
-                )
+                whole_first_input, whole_second_input = self.get_inputs(i, gate)
+                first_input = SU.int_to_bin(whole_first_input, self.k[i + 1])[
+                    self.get_num_copy()[i + 1] :
+                ]
+                second_input = SU.int_to_bin(whole_second_input, self.k[i + 1])[
+                    self.get_num_copy()[i + 1] :
+                ]
 
-                # now w is of length copy_k[i]+2*copy_k[i+1]
-                # N equals copy_k[i]+2*copy_k[i+1]
+                w = SU.int_to_bin(gate, self.copy_k[i]) + first_input + second_input
+
                 answer = (answer + SU.chi(w, x, N, p)) % p
         return answer
 

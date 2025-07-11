@@ -159,6 +159,7 @@ class Interactor:
     def process_SRE_for_parallelism(self, num_layer: int, z_tuple: tuple):
         """
         In parallel settings, the sumcheck random elements are of size 2*copy_k[num_layer+1] because there are 2*k[num_layer+1] random elements sent by the verifier. But for further processing, we need to make it 2*k[num_layer+1].
+        z_tuple is the num_copy length list that is supposed to be inserted into the sumcheck_random_elements[num_layer] at the right place.
         """
         assert (
             isinstance(z_tuple, tuple)

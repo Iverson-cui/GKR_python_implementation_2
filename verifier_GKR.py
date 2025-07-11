@@ -184,7 +184,7 @@ class Verifier(Interactor):
                 )
             )
         SRE_layer_i = self.get_layer_i_sumcheck_random_elements(i)
-        self.process_SRE_for_parallelism(i, z_tuple[: -copy_k[i]])
+        self.process_SRE_for_parallelism(i, z_tuple[: self.get_num_copy()[i + 1]])
         self.append_line(self.compute_line(i))
         # bstar and cstar is the input of W_i function for verification.
         bstar = tuple(SRE_layer_i[: k[i + 1]])
@@ -211,11 +211,10 @@ class Verifier(Interactor):
         # compute what the prover claims f_i(SRE_layer_i) is based on
         # what the prover claims W_{i+1}(bstar) and W_{i+1}(cstar) are.
         # (this is via the polynomial that the prover sends!!)
-
-        current_claimed_value_of_fi = (
-            add_bstar_cstar * (vals[0] + vals[1])
-            + mult_bstar_cstar * (vals[0] * vals[1])
-        ) % p
+        if not i == self.circ.get_depth() - 1:
+            current_claimed_value_of_fi = (add_bstar_cstar * (vals[0] + vals[1])) % p
+        else:
+            current_claimed_value_of_fi = (mult_bstar_cstar * (vals[0] * vals[1])) % p
         # The verifier needs to get the old claimed value to compare it with the new one.
         if TIME_INFO:
             old_claimed_value_start_time = time.time()
