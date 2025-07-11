@@ -12,7 +12,7 @@ from interactor_GKR import Interactor
 import sumcheck_util as SU
 import circuit
 
-DEBUG_INFO = True
+DEBUG_INFO = False
 
 
 class Prover(Interactor):
