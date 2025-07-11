@@ -32,6 +32,8 @@ class Circuit:
             if i==d, on key a gate the value is ("input", [], [val]), where the middle list
             is *always* the empty list (as there are no inputs to an input gate)
 
+            Every line is a dict. key with type int is the gate label. value is a list. lst[0] is the gate type. lst[1] is the input, lst[2] is the gate value.
+
         p: a prime number.
     These four variables are fixed at creation of a circuit.
 
@@ -285,8 +287,7 @@ class Circuit:
         k = self.get_k()
         assert (
             0 <= i < d
-        ), "layer is out of bounds. use add_input_layer\
-                                if you wish do have i == d."
+        ), "layer is out of bounds. use add_input_layer if you wish to have i == d."
         # gates is a list of the keys, gates_info is a list of the values
         gates = list(D_i.keys())
         gates_info = list(D_i.values())
@@ -294,23 +295,34 @@ class Circuit:
         # check the typing and information of gates_info
         for info in gates_info:
             assert len(info) == 3, "one of the values has the wrong length"
+            # info[0] is the gate type.
             assert info[0] in [
                 "add",
                 "mult",
                 "input",
             ], "one of the values has an invalid gate type"
+            # info[1] is the gate inputs.
+            # we hard code that layer 0 has 4 inputs, layer 1 has 16 inputs, and all other layers have 2 inputs.
+            if i == 0:
+                fan_in = 4
+            elif i == 1:
+                fan_in = 16
+            else:
+                fan_in = 2
             assert (
-                len(info[1]) == 2
+                len(info[1]) == fan_in
                 and 0 <= info[1][0] < 2 ** k[i + 1]
                 and 0 <= info[1][1] < 2 ** k[i + 1]
             ), "there is a problem with the input gate numbering for layer {}, gate inputs are {}, but should be in range [0, {}]".format(
                 i, info[1], 2 ** k[i + 1] - 1
             )
+            # info[2] is the gate value.
             assert len(info[2]) <= 1, "there are too many values!"
         gates.sort()
         assert gates == [
             i for i in range(0, 2 ** self.get_k()[i])
         ], "Dictionary has the wrong number of elements"
+        # In essence every layer of the circuit is a dictionary of int keys and lists values.
         self.L[i] = copy.deepcopy(D_i)
 
     # add_input_layer adds an input layer.
@@ -448,37 +460,50 @@ def createCircuit(fileName: str, num_copy: list, p: int) -> Circuit:
         ), "the {}th line of the document does not start with {}".format(i, i)
         numGates = int(line[1])
 
+        if i == 0:
+            fan_in = 4
+            gateInput = [0] * 4
+        elif i == 1:
+            fan_in = 16
+            gateInput = [0] * 16
+        else:
+            fan_in = 2
+            gateInput = [0] * 2
         # Add validation for non-input layer
         expected_columns = (
-            2 + 3 * numGates
+            2 + (fan_in + 1) * numGates
         )  # For non-input layer: each gate needs 3 columns
         if len(line) != expected_columns:
             raise ValueError(
-                f"Line {i} claims {numGates} gates but has {(len(line)-2)/3} gates, {len(line)} columns, need {expected_columns}"
+                f"Line {i} claims {numGates} gates but has {(len(line)-2)/fan_in} gates, {len(line)} columns, need {expected_columns}"
             )
 
-        layer = dict()
+        layer = {}
         for j in range(numGates):
-            gateType = line[2 + 3 * j].strip()
+            gateType = line[2 + (fan_in + 1) * j].strip()
 
             assert gateType in [
                 "mult",
                 "add",
             ], "The only allowable gates are mult and add"
-            gateInput1 = int(line[2 + 3 * j + 1])
-            gateInput2 = int(line[2 + 3 * j + 2])
-            layer[j] = [gateType, [gateInput1, gateInput2], []]
+            for temp in range(fan_in):
+                gateInput[temp] = int(line[2 + (fan_in + 1) * j + (temp + 1)])
+            # gateInput1 = int(line[2 + 3 * j + 1])
+            # gateInput2 = int(line[2 + 3 * j + 2])
+
+            # Now gateInput is a list.
+            layer[j] = [gateType, gateInput, []]
 
         C.add_layer(i, layer)
 
-    # check input layer: i =d . If it passes, add the layer to C.
+    # check input layer: i = d . If it passes, add the layer to C.
     for i in range(d, d + 1):
         line = circuitData[i]
         assert i == int(
             line[0]
         ), "the {}th line of the document does not start with {}".format(i, i)
         numGates = int(line[1])
-        layer = dict()
+        layer = {}
         expected_columns = 2 + 2 * numGates  # For input layer
         if len(line) != expected_columns:
             raise ValueError(
