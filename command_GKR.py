@@ -94,71 +94,79 @@ def execute(C):
                     i, copy_k[i], num_copy, k[i], copy_k[i + 1]
                 )
             )
-        for s in range(2 * copy_k[i + 1] + 1):
-            # s spans from 0 to 2*copy_k[i+1].
-            # when s=0, the prover just passes the MLE evaluated at the random vector passed by verifier. This is evident from p34 of the book. Prover needs to first send the sum of binary input of f_i.
-            # i means layer number, s means step number, r means random element.
-            # when s=1, fixing the first variable, there is no random element. This coincides with what the partial_sumcheck_check returns at s=0, namely, 0.
-            prover_msg = prover_inst.partial_sumcheck(i, s, r)
-            if DEBUG_INFO:
-                string_of_prover_msg = "+".join(
-                    ["{}*x^{}".format(prover_msg[l], l) for l in [2, 1, 0]]
-                )
-                print(
-                    "at layer {} step {}, the polynomial the prover sends is {}".format(
-                        i, s, string_of_prover_msg
+        # for encapsutation version.
+        if not i == d - 1:
+            for s in range(copy_k[i + 1] + 1):
+                pass
+        # for normal version, last layer in the circuit
+        else:
+            for s in range(2 * copy_k[i + 1] + 1):
+                # s spans from 0 to 2*copy_k[i+1].
+                # when s=0, the prover just passes the MLE evaluated at the random vector passed by verifier. This is evident from p34 of the book. Prover needs to first send the sum of binary input of f_i.
+                # i means layer number, s means step number, r means random element.
+                # when s=1, fixing the first variable, there is no random element. This coincides with what the partial_sumcheck_check returns at s=0, namely, 0.
+                prover_msg = prover_inst.partial_sumcheck(i, s, r)
+                if DEBUG_INFO:
+                    string_of_prover_msg = "+".join(
+                        ["{}*x^{}".format(prover_msg[l], l) for l in [2, 1, 0]]
                     )
-                )
-            # r is the random element used in the next round
-            r = verifier_inst.partial_sumcheck_check(i, s, prover_msg)
-            if DEBUG_INFO:
-                if s != 0:
                     print(
-                        "at layer {} step {}, verifier's randomness is {}".format(
-                            i, s, r
+                        "at layer {} step {}, the polynomial the prover sends is {}".format(
+                            i, s, string_of_prover_msg
                         )
                     )
-        # W_iplus1_with_line is what the prover claims \tilde{W}_i restricted to the line is.
-        W_iplus1_with_line = prover_inst.send_Wi_on_line(i, r)
-        if DEBUG_INFO:
-            print(
-                "The univariate polynomial that the prover sends at the end of step {} on the line is: {}".format(
-                    i, SU.string_of_polynomial(W_iplus1_with_line)
+                # r is the random element used in the next round
+                r = verifier_inst.partial_sumcheck_check(i, s, prover_msg)
+                if DEBUG_INFO:
+                    if s != 0:
+                        print(
+                            "at layer {} step {}, verifier's randomness is {}".format(
+                                i, s, r
+                            )
+                        )
+            # W_iplus1_with_line is what the prover claims \tilde{W}_i restricted to the line is.
+            W_iplus1_with_line = prover_inst.send_Wi_on_line(i, r)
+            if DEBUG_INFO:
+                print(
+                    "The univariate polynomial that the prover sends at the end of step {} on the line is: {}".format(
+                        i, SU.string_of_polynomial(W_iplus1_with_line)
+                    )
                 )
-            )
-        if TIME_INFO:
-            gate_loop_end_time = time.time()
-            print(
-                "Time for layer {} gate loop: {}".format(
-                    i, gate_loop_end_time - gate_loop_start_time
+            if TIME_INFO:
+                gate_loop_end_time = time.time()
+                print(
+                    "Time for layer {} gate loop: {}".format(
+                        i, gate_loop_end_time - gate_loop_start_time
+                    )
                 )
-            )
 
-        if TIME_INFO:
-            reduce_start_time = time.time()
-        new_random_vector = verifier_inst.reduce_two_to_one_without_verification(
-            i, W_iplus1_with_line
-        )
-        if TIME_INFO:
-            reduce_end_time = time.time()
-            print(
-                "Time for layer {} reduce two to one: {}".format(
-                    i, reduce_end_time - reduce_start_time
-                )
+            if TIME_INFO:
+                reduce_start_time = time.time()
+            new_random_vector = verifier_inst.reduce_two_to_one_without_verification(
+                i, W_iplus1_with_line
             )
-        prover_inst.receive_random_vector(i + 1, new_random_vector)
-        if TIME_INFO:
-            receive_time = time.time()
-            print(
-                "Time for layer {} receive random vector: {}".format(
-                    i, receive_time - reduce_end_time
+            if TIME_INFO:
+                reduce_end_time = time.time()
+                print(
+                    "Time for layer {} reduce two to one: {}".format(
+                        i, reduce_end_time - reduce_start_time
+                    )
                 )
-            )
+            prover_inst.receive_random_vector(i + 1, new_random_vector)
+            if TIME_INFO:
+                receive_time = time.time()
+                print(
+                    "Time for layer {} receive random vector: {}".format(
+                        i, receive_time - reduce_end_time
+                    )
+                )
 
-        if TIME_INFO:
-            loop_end_time = time.time()
+            if TIME_INFO:
+                loop_end_time = time.time()
 
-            print("Time for layer {}: {}".format(i, loop_end_time - loop_start_time))
+                print(
+                    "Time for layer {}: {}".format(i, loop_end_time - loop_start_time)
+                )
     if TIME_INFO:
         final_start_time = time.time()
     verifier_inst.final_verifier_check()
