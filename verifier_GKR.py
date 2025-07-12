@@ -76,10 +76,12 @@ class Verifier(Interactor):
         p = self.p
         d = self.d
         copy_k = self.get_circ().get_copy_k()
+        k = self.get_k()
+        num_copy = self.get_num_copy()
         assert i >= 0 and i < d, "i is out of bounds"
         assert (
-            s >= 0 and s <= 2 * copy_k[i + 1]
-        ), "step must be between 0 and 2*copy_k_{i+1}"
+            s >= 0 and s <= k[i + 1] - num_copy[i]
+        ), "step must be between 0 and k[i+1]-num_copy[i]"
         # we will separate out three cases: s = 0, s = 1, and all other cases.
         if s == 0:
             # poly represents the *value* that the prover is claiming. I.e.,
@@ -115,7 +117,7 @@ class Verifier(Interactor):
             new_random_element = np.random.randint(0, p)
             self.append_element_SRE(i, new_random_element)
             return new_random_element
-        elif 1 < s <= 2 * copy_k[i + 1]:
+        elif 1 < s <= k[i + 1] - num_copy[i]:
             # The reason to separate out the case s == 1 is that, in each round of sumcheck we need to compare MLE at 0 + MLE at 1 = last round value. Last round value is calculated when used. This means we have to obtain the random element and poly of last round every time. When s=1, there is no last round random element, and poly is just a value.
             r = self.get_sumcheck_random_element(i, s - 1)
             sum_new_poly_at_0_1 = (
@@ -139,7 +141,7 @@ class Verifier(Interactor):
             # Then append the random challenge of the last variable to the SRE list.
             self.append_element_SRE(i, new_random_element)
 
-            if s == 2 * copy_k[i + 1]:
+            if s == k[i + 1] - num_copy[i]:
                 layer_i_random_elements = self.get_layer_i_sumcheck_random_elements(i)
                 assert (
                     len(layer_i_random_elements) == 2 * copy_k[i + 1]
@@ -252,6 +254,13 @@ class Verifier(Interactor):
         )
 
         return new_random_vector
+
+    def encapsulate_verification_check(self, random_vector: list):
+        """
+        In encapsulation version, there is no line. We just need to check the unique claim.
+        """
+        self.append_RV(random_vector)
+        return random_vector
 
     def reduce_two_to_one_without_verification(self, i: int, poly: list):
         """

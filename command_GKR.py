@@ -96,8 +96,13 @@ def execute(C):
             )
         # for encapsutation version.
         if not i == d - 1:
-            for s in range(copy_k[i + 1] + 1):
-                pass
+            for s in range(k[i + 1] - num_copy[i] + 1):
+                prover_msg = prover_inst.partial_sumcheck(i, s, r)
+                r = verifier_inst.partial_sumcheck_check(i, s, prover_msg)
+                random_vector = prover_inst.encapsulate_verification(i, r)
+                verifier_inst.encapsulate_verification_check(random_vector)
+                prover_inst.receive_random_vector(i + 1, random_vector)
+
         # for normal version, last layer in the circuit
         else:
             for s in range(2 * copy_k[i + 1] + 1):
@@ -142,9 +147,7 @@ def execute(C):
 
             if TIME_INFO:
                 reduce_start_time = time.time()
-            new_random_vector = verifier_inst.reduce_two_to_one_without_verification(
-                i, W_iplus1_with_line
-            )
+            new_random_vector = verifier_inst.reduce_two_to_one(i, W_iplus1_with_line)
             if TIME_INFO:
                 reduce_end_time = time.time()
                 print(

@@ -111,6 +111,7 @@ class Prover(Interactor):
         # z1 = self.get_random_vector(i)[num_copy[i + 1] :]
         # z2 is the copy random, z2 is of length num_copy[i + 1] because it acts as the input to the copy bits of W_i+1
         z2 = self.get_random_vector(i)[: num_copy[i]]
+        z1 = self.get_random_vector(i)[num_copy[i] :]
         # Cormode_x is lst of length 2^(k[i+1]-num_copy[i]-s)
         Cormode_0 = SU.Cormode_eval_W(
             W_iplus1, z2 + bc_partial + (0,), s + num_copy[i], k[i + 1], p
@@ -134,10 +135,11 @@ class Prover(Interactor):
             len(Cormode_2) == expected_length
         ), f"Cormode_2 length should be {expected_length}, but got {len(Cormode_2)}"
 
-        # iterate for all of the layer i+1 gates that are supposed to be in the copy assignment in layer i.
+        # iterate for all of the layer i+1 gates that are supposed to be in the copy assignment in layer i. k[i+1]-num_copy[i] is the number of all of the layer i+1 gates in the first copy of layer i.
         for gate in range(2 ** (k[i + 1] - num_copy[i])):
             # we use the first copy as an example.
             bin_gate_label = SU.int_to_bin(gate, k[i + 1] - num_copy[i])
+            upstream = SU.int_to_bin(gate // 2 ** copy_k[i], copy_k[i])
             for x in range(3):
                 gate_type = circ.get_type(i, gate)
                 if x == 0:
@@ -153,27 +155,27 @@ class Prover(Interactor):
                     poly_values[x] = (
                         poly_values[x]
                         + SU.chi(
-                            a_gate[: copy_k[i] + s],
-                            z2 + bc_partial + (x,),
-                            copy_k[i] + s,
+                            z1 + bc_partial + (x,),
+                            upstream + bin_gate_label[:s],
+                            copy_k[i] + k[i + 1] - num_copy[i] - s,
                             p,
                         )
-                        * (W_iplus1_at_b + W_iplus1_at_c)
+                        * W_iplus1
                     ) % p
-                elif gate_type == "mult":
-                    # print("mult gate")
-                    poly_values[x] = (
-                        poly_values[x]
-                        + SU.chi(
-                            a_gate[: copy_k[i] + s],
-                            self.get_random_vector(i)[num_copy[i] :]
-                            + bc_partial
-                            + (x,),
-                            copy_k[i] + s,
-                            p,
-                        )
-                        * (W_iplus1_at_b * W_iplus1_at_c)
-                    ) % p
+                # elif gate_type == "mult":
+                #     # print("mult gate")
+                #     poly_values[x] = (
+                #         poly_values[x]
+                #         + SU.chi(
+                #             a_gate[: copy_k[i] + s],
+                #             self.get_random_vector(i)[num_copy[i] :]
+                #             + bc_partial
+                #             + (x,),
+                #             copy_k[i] + s,
+                #             p,
+                #         )
+                #         * (W_iplus1_at_b * W_iplus1_at_c)
+                #     ) % p
                 # W_iplus1_at_b = SU.DP_eval_MLE(W_iplus1, b, k[i + 1], p)
                 # W_iplus1_at_c = SU.DP_eval_MLE(W_iplus1, c, k[i + 1], p)
                 # gate_type = circ.get_type(i, gate)
@@ -210,8 +212,9 @@ class Prover(Interactor):
         The above sum_fi function can do most work of this, but we need to encapsulate that function. Here different actions are taken depending on the step s.
         """
         d = self.d
-        # k = self.k
+        k = self.k
         copy_k = self.get_circ().get_copy_k()
+        num_copy = self.get_num_copy()
         assert i >= 0 and i < d, "i is out of bounds"
 
         assert (
@@ -240,7 +243,7 @@ class Prover(Interactor):
             poly = self.sum_fi(i, s)
             self.append_sumcheck_polynomial(i, poly)
             return poly
-        elif s <= 2 * copy_k[i + 1]:
+        elif s <= k[i + 1] - num_copy[i]:
             # the sumcheck_random_elements[i] keeps updating as we use every round. It initializes to all 0 but every time we only use its non-zero part after update.
             self.append_element_SRE(i, random_element)
             poly = self.sum_fi(i, s)
@@ -296,6 +299,28 @@ class Prover(Interactor):
         # print("The univariate polynomial that the prover sends at the end of step {} on the line is: {}".\
         #       format(i, string_of_poly))
         return poly
+
+    def encapsulate_verification(self, num_layer: int, random_element: int):
+        """
+        This function is used in the situation of encapsulation case, where there is no need to have a line, just a single W_i+1.
+        """
+        k = self.get_k()
+        num_copy = self.get_num_copy()
+        self.append_element_SRE(num_layer, random_element)
+        assert (
+            len(self.sumcheck_random_elements[num_layer])
+            == k[num_layer + 1] - num_copy[num_layer]
+        )
+        # SRE is of length k[i+1]-num_copy[i]. We need to append it to the length of k[i+1]
+        self.sumcheck_random_elements[num_layer].insert(
+            0, self.get_random_vector(num_layer)[: num_copy[num_layer]]
+        )
+        assert len(self.sumcheck_random_elements[num_layer]) == k[num_layer + 1]
+        # self.process_SRE_for_parallelism(num_layer, self.get_random_vector(num_layer))
+
+        # randomly append sth to keep things right in later rounds.
+        self.append_line(random_element)
+        return self.sumcheck_random_elements[num_layer]
 
     def send_final_Wd_evaluation(self):
         """

@@ -126,7 +126,7 @@ class Circuit:
         Di = self.get_layer(i)
         assert gate in Di, "gate is not in the input layer you picked"
         assert (
-            len(Di[gate][1]) == self.fan_in[i + 1]
+            len(Di[gate][1]) == self.fan_in[i]
         ), f"Gate {gate} in layer {i} should have {self.fan_in[i + 1]} inputs, but has {len(Di[gate][1])}"
         return Di[gate][1]
 
@@ -136,8 +136,8 @@ class Circuit:
         """
         # input_gate = []
         input_gate = self.get_inputs(i, gate)
-        input_value = [0] * self.fan_in[i + 1]
-        for j in range(self.fan_in[i + 1]):
+        input_value = [0] * self.fan_in[i]
+        for j in range(self.fan_in[i]):
             # input_gate[j] = self.get_value(i + 1, input_gate[j])
             input_value[j] = self.get_value(i + 1, input_gate[j])
         return input_value
