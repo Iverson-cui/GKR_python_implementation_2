@@ -524,7 +524,7 @@ class Prover(Interactor):
         assert i >= 0 and i < d, "i is out of bounds"
 
         assert (
-            s >= 0 and s <= 2 * copy_k[i + 1]
+            s >= 0 and s <= k[i + 1] - num_copy[i]
         ), f"In parallel settings, step must be between 0 and 2*copy_k_{i+1}. Now s={s}, copy_k_{i+1}={copy_k[i+1]}"
 
         # Now protocol starts. RV_i is the input to the claim at this layer. In detail, every layer, the claim starts with W_i(random vector)=claimed value. RV_i here is the random vector.
@@ -557,6 +557,63 @@ class Prover(Interactor):
             return poly
 
     # NOTE: we're appending the last random element, to fill out the sumcheck random elements. Write in specs!
+
+    def partial_sumcheck_naive(self, i: int, s: int, random_element: int):
+        """
+        partial_sumcheck
+        INPUT: i (integer), s (integer), random_element (integer)
+        OUTPUT: poly (list)
+
+        performs step s of sumcheck for layer i of the circuit.
+        here, sumcheck is done with respect to the polynomial in Eq. 4.17 (section 4.6.3: Protocol overview)
+        of Thaler's book. this polynomial, which we will call f^{i}_{r_i}, is a polynomial in
+        2 * k[i] variables
+        i is the layer in the circuit, s is the step in the sumcheck protocol
+        random_element is the random element of F_p that the verifier sends. (in case of the first communication, we'll  default this to 0.)
+        copy_number is the number of copies of the circuit that we are using. For now we assume the whole circuit conform to one assignment.
+        returns a quadratic polynomial in the form [a, b, c], which corresponds to
+        a + bx + cx^2
+
+        The above sum_fi function can do most work of this, but we need to encapsulate that function. Here different actions are taken depending on the step s.
+        """
+        d = self.d
+        # k = self.k
+        copy_k = self.get_circ().get_copy_k()
+        # num_copy = self.get_num_copy()
+        assert i >= 0 and i < d, "i is out of bounds"
+
+        assert (
+            s >= 0 and s <= 2 * copy_k[i + 1]
+        ), f"In parallel settings, step must be between 0 and 2*copy_k_{i+1}. Now s={s}, copy_k_{i+1}={copy_k[i+1]}"
+
+        # Now protocol starts. RV_i is the input to the claim at this layer. In detail, every layer, the claim starts with W_i(random vector)=claimed value. RV_i here is the random vector.
+        RV_i = self.get_random_vector(i)
+
+        # at step = 0 of the sumcheck about W_i and W_i+1, we are starting the sumcheck protocol and
+        # have to send back the actual value of
+        # \tilde{W}_i(value_of_random_vectors[i]).
+        # (NOTE: no sum is required.)
+        if s == 0:
+            new_evaluation = self.get_evaluation_of_RV(i)
+            if DEBUG_INFO:
+                print(
+                    "The multi-linear extension of W_{} at {} is {}".format(
+                        i, RV_i, new_evaluation
+                    )
+                )
+            return [new_evaluation, 0, 0]
+
+        # from s==1, Prover has to send the partial sum of the W_i+1 variables. But until now no random element has been sent from verifier to prover, so we don't need to append the random_element to the SRE.
+        elif s == 1:
+            poly = self.sum_fi_naive(i, s)
+            self.append_sumcheck_polynomial(i, poly)
+            return poly
+        elif s <= 2 * copy_k[i + 1]:
+            # the sumcheck_random_elements[i] keeps updating as we use every round. It initializes to all 0 but every time we only use its non-zero part after update.
+            self.append_element_SRE(i, random_element)
+            poly = self.sum_fi_naive(i, s)
+            self.append_sumcheck_polynomial(i, poly)
+            return poly
 
     def send_Wi_on_line(self, i: int, random_element: int):
         """

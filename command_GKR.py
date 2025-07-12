@@ -121,7 +121,7 @@ def execute(C):
                         )
                     )
                 # r is the random element used in the next round
-                r = verifier_inst.partial_sumcheck_check(i, s, prover_msg)
+                r = verifier_inst.partial_sumcheck_check_naive(i, s, prover_msg)
                 if DEBUG_INFO:
                     if s != 0:
                         print(

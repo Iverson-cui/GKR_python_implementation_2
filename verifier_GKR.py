@@ -151,6 +151,95 @@ class Verifier(Interactor):
 
             return new_random_element
 
+    def partial_sumcheck_check_naive(self, i: int, s: int, poly: list):
+        """
+        partial_sumcheck_check
+        INPUTS: i (integer), s (integer), poly (list)
+        OUTPUTS: new_random_element
+
+        This is the verifier's side of the sumcheck protocol. Here, i is the layer,
+        s is the step in the sumcheck within the layer, and poly is the last thing that
+        the prover sent to us. (For the initial message, which is simply a number, we
+        had the prover send it over as [val, 0, 0], i.e., the constant quadratic polynomial)
+
+        if the checks are satisfied, we have the verifier send fresh randomness.
+        """
+        p = self.p
+        d = self.d
+        copy_k = self.get_circ().get_copy_k()
+        assert i >= 0 and i < d, "i is out of bounds"
+        assert (
+            s >= 0 and s <= 2 * copy_k[i + 1]
+        ), "step must be between 0 and 2*copy_k_{i+1}"
+        # we will separate out three cases: s = 0, s = 1, and all other cases.
+        if s == 0:
+            # poly represents the *value* that the prover is claiming. I.e.,
+            # Prover claims \tilde{W}_i(last_random_vector) = val (in the form of
+            # [val, 0, 0]). He will spend the rest of the sumcheck locally verifying this
+            # and eventually reducing it to a claim about \tilde{W}_{i+1}
+            if i >= 2:
+                assert poly[0] == self.get_claimed_value_at_end_of_layer(
+                    i - 1
+                ), "The claimed value at the end of step {}, {} does not match with what the prover just sent, {}".format(
+                    i - 1, self.get_claimed_value_at_end_of_layer(i - 1), poly[0]
+                )
+            self.append_sumcheck_polynomial(i, poly)
+            # if s == 0, don't return anything
+            return 0
+        elif s == 1:
+            # first, check compatibility of the 0th and first poly.
+            sum_new_poly_at_0_1 = (
+                SU.quadratic_evaluation(poly, 0, p)
+                + SU.quadratic_evaluation(poly, 1, p)
+            ) % p
+            old_value = SU.quadratic_evaluation(
+                self.get_specific_polynomial(i, s - 1), 0, p
+            )
+            assert (
+                sum_new_poly_at_0_1 == old_value % p
+            ), "the first check failed, {} is not equal to {}".format(
+                sum_new_poly_at_0_1, old_value
+            )
+            #            print("layer {} step 1 succeeded!".format(i))
+            # Now the verification passes, verifier generate random challenges.
+            self.append_sumcheck_polynomial(i, poly)
+            new_random_element = np.random.randint(0, p)
+            self.append_element_SRE(i, new_random_element)
+            return new_random_element
+        elif 1 < s <= 2 * copy_k[i + 1]:
+            # The reason to separate out the case s == 1 is that, in each round of sumcheck we need to compare MLE at 0 + MLE at 1 = last round value. Last round value is calculated when used. This means we have to obtain the random element and poly of last round every time. When s=1, there is no last round random element, and poly is just a value.
+            r = self.get_sumcheck_random_element(i, s - 1)
+            sum_new_poly_at_0_1 = (
+                SU.quadratic_evaluation(poly, 0, p)
+                + SU.quadratic_evaluation(poly, 1, p)
+            ) % p
+            old_value = SU.quadratic_evaluation(
+                self.get_specific_polynomial(i, s - 1), r, p
+            )
+            assert (
+                sum_new_poly_at_0_1 == old_value % p
+            ), "the check failed at layer {} step {}, {} is not equal to {}. copy_k[i]={},copy_k[i+1]={}".format(
+                i, s, sum_new_poly_at_0_1, old_value, copy_k[i], copy_k[i + 1]
+            )
+            #            print("layer {} step {} succeeded!".format(i, s))
+            # Now the verification passes, verifier generate random challenges.
+
+            # first, append the polynomial that has passed the verification to the list of polynomials.
+            self.append_sumcheck_polynomial(i, poly)
+            new_random_element = np.random.randint(0, p)
+            # Then append the random challenge of the last variable to the SRE list.
+            self.append_element_SRE(i, new_random_element)
+
+            if s == 2 * copy_k[i + 1]:
+                layer_i_random_elements = self.get_layer_i_sumcheck_random_elements(i)
+                assert (
+                    len(layer_i_random_elements) == 2 * copy_k[i + 1]
+                ), "the number of random elements the verifier has added to layer {} is not 2*k[i+1], which means {} is not {}".format(
+                    i, len(layer_i_random_elements), 2 * copy_k[i + 1]
+                )
+
+            return new_random_element
+
     def reduce_two_to_one(self, i: int, poly: list):
         """
         reduce_two_to_one
