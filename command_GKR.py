@@ -99,9 +99,9 @@ def execute(C):
             for s in range(k[i + 1] - num_copy[i] + 1):
                 prover_msg = prover_inst.partial_sumcheck(i, s, r)
                 r = verifier_inst.partial_sumcheck_check(i, s, prover_msg)
-                random_vector = prover_inst.encapsulate_verification(i, r)
-                verifier_inst.encapsulate_verification_check(random_vector)
-                prover_inst.receive_random_vector(i + 1, random_vector)
+            random_vector = prover_inst.encapsulate_verification(i, r)
+            verifier_inst.encapsulate_verification_check(random_vector)
+            prover_inst.receive_random_vector(i + 1, random_vector)
 
         # for normal version, last layer in the circuit
         else:
@@ -183,6 +183,6 @@ def execute(C):
 
 # C = [circuit.createCircuit("circuitdata-{}.csv".format(i), 10007) for i in range(1, 5)]
 # Deep_C = circuit.createCircuit("deep_circuit-1.csv", 10007)
-test_circuit = circuit.createCircuit(data_dir, [2, 2, 2, 1], 10007)
+test_circuit = circuit.createCircuit(data_dir, [1, 1, 1, 0], 10007)
 execution_time = timeit.timeit(lambda: execute(test_circuit), number=5)
 print("Execution time for test_circuit: ", execution_time / 3, "seconds")
