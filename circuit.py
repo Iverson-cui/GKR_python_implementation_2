@@ -377,7 +377,10 @@ class Circuit:
                 self.place_value(i, gate, (sum_of_inputs) % p)
             elif self.get_type(i, gate) == "mult":
                 input_values = self.get_input_values(i, gate)
-                self.place_value(i, gate, (input_values[0] * input_values[1]) % p)
+                mult_of_inputs = 1
+                for v in input_values:
+                    mult_of_inputs *= v
+                self.place_value(i, gate, (mult_of_inputs) % p)
 
     # compute_circuit simply computes fills in all the values of the circuit layer by layer, using
     # compute layer
@@ -502,9 +505,9 @@ def createCircuit(fileName: str, num_copy: list, p: int) -> Circuit:
                 gateInput[temp] = int(line[2 + (C.fan_in[i] + 1) * j + (temp + 1)])
             # gateInput1 = int(line[2 + 3 * j + 1])
             # gateInput2 = int(line[2 + 3 * j + 2])
-
+            gateInput_temp = gateInput[:]
             # Now gateInput is a list.
-            layer[j] = [gateType, gateInput, []]
+            layer[j] = [gateType, gateInput_temp, []]
 
         C.add_layer(i, layer)
 

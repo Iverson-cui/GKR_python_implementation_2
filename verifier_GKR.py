@@ -144,7 +144,7 @@ class Verifier(Interactor):
             if s == k[i + 1] - num_copy[i]:
                 layer_i_random_elements = self.get_layer_i_sumcheck_random_elements(i)
                 assert (
-                    len(layer_i_random_elements) == 2 * copy_k[i + 1]
+                    len(layer_i_random_elements) == k[i + 1] - num_copy[i]
                 ), "the number of random elements the verifier has added to layer {} is not 2*k[i+1], which means {} is not {}".format(
                     i, len(layer_i_random_elements), 2 * copy_k[i + 1]
                 )
@@ -348,7 +348,7 @@ class Verifier(Interactor):
         """
         In encapsulation version, there is no line. We just need to check the unique claim.
         """
-        self.append_RV(random_vector)
+        self.append_RV(tuple(random_vector))
         return random_vector
 
     def reduce_two_to_one_without_verification(self, i: int, poly: list):

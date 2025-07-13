@@ -46,7 +46,7 @@ class Prover(Interactor):
         k = self.k
         p = self.p
         assert i >= 0 and i <= d, "the layer must be between 0 and d-1"
-        self.random_vectors.append(r_i)
+        self.random_vectors.append(tuple(r_i))
         D_i = self.circ.get_W(i)
         # evaluate get_W(i) at the random vector r_i
         evaluation_at_random_vector = SU.eval_MLE(D_i, r_i, k[i], p)
@@ -388,7 +388,7 @@ class Prover(Interactor):
         assert i < len(self.get_random_vectors()), "haven't reached this layer yet"
         # the partial sumcheck function address the case of s=0.
         assert (
-            1 <= s <= copy_k[i]
+            1 <= s <= k[i + 1] - num_copy[i]
         ), "In parallel settings, the step s in sumcheck is out of bounds"
         # check the len and type of RV
         assert isinstance(
@@ -445,7 +445,10 @@ class Prover(Interactor):
         for gate in range(2 ** (k[i + 1] - num_copy[i])):
             # we use the first copy as an example.
             bin_gate_label = SU.int_to_bin(gate, k[i + 1] - num_copy[i])
-            upstream = SU.int_to_bin(gate // 2 ** copy_k[i], copy_k[i])
+            if i == 0:
+                upstream = (0,)
+            else:
+                upstream = SU.int_to_bin(gate // 2 ** copy_k[i], copy_k[i])
             for x in range(3):
                 gate_type = circ.get_type(i, gate)
                 if x == 0:
@@ -457,13 +460,25 @@ class Prover(Interactor):
                 else:
                     raise ValueError("x must be 0, 1 or 2, but got {}".format(x))
 
+                # copy_k[i] is the length of the upstream but now we hard code length 1
+                # TODO: this need to be fixed later.
                 if gate_type == "add":
                     poly_values[x] = (
                         poly_values[x]
                         + SU.chi(
                             z1 + bc_partial + (x,),
-                            upstream + bin_gate_label[:s],
-                            copy_k[i] + k[i + 1] - num_copy[i] - s,
+                            (0,) + bin_gate_label[:s],
+                            copy_k[i] + s,
+                            p,
+                        )
+                        * W_iplus1
+                    ) % p
+                    poly_values[x] = (
+                        poly_values[x]
+                        + SU.chi(
+                            z1 + bc_partial + (x,),
+                            (1,) + bin_gate_label[:s],
+                            copy_k[i] + s,
                             p,
                         )
                         * W_iplus1
@@ -675,8 +690,9 @@ class Prover(Interactor):
             == k[num_layer + 1] - num_copy[num_layer]
         )
         # SRE is of length k[i+1]-num_copy[i]. We need to append it to the length of k[i+1]
-        self.sumcheck_random_elements[num_layer].insert(
-            0, self.get_random_vector(num_layer)[: num_copy[num_layer]]
+        self.sumcheck_random_elements[num_layer] = (
+            list(self.get_random_vector(num_layer)[: num_copy[num_layer]])
+            + self.sumcheck_random_elements[num_layer]
         )
         assert len(self.sumcheck_random_elements[num_layer]) == k[num_layer + 1]
         # self.process_SRE_for_parallelism(num_layer, self.get_random_vector(num_layer))
