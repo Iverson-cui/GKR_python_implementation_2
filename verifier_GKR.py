@@ -358,7 +358,7 @@ class Verifier(Interactor):
             # )
             value
         )
-        # TODO
+        self.append_line(random_vector)
         return random_vector
 
     def reduce_two_to_one_without_verification(self, i: int, poly: list):
