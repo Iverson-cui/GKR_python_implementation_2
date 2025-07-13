@@ -12,7 +12,7 @@ from interactor_GKR import Interactor
 import sumcheck_util as SU
 import circuit
 
-DEBUG_INFO = False
+DEBUG_INFO = True
 
 
 class Prover(Interactor):
@@ -441,16 +441,19 @@ class Prover(Interactor):
             len(Cormode_2) == expected_length
         ), f"Cormode_2 length should be {expected_length}, but got {len(Cormode_2)}"
 
+        if i != d - 1:
+            gate_type = "add"
+        else:
+            gate_type = "mult"
+
         # iterate for all of the layer i+1 gates that are supposed to be in the copy assignment in layer i. k[i+1]-num_copy[i] is the number of all of the layer i+1 gates in the first copy of layer i.
         for gate in range(2 ** (k[i + 1] - num_copy[i])):
             # we use the first copy as an example.
             bin_gate_label = SU.int_to_bin(gate, k[i + 1] - num_copy[i])
-            if i == 0:
-                upstream = (0,)
-            else:
-                upstream = SU.int_to_bin(gate // 2 ** copy_k[i], copy_k[i])
+            num_downstream = (k[i + 1] - num_copy[i]) - copy_k[i]
+            upstream = SU.int_to_bin(gate // 2**num_downstream, copy_k[i])
             for x in range(3):
-                gate_type = circ.get_type(i, gate)
+
                 if x == 0:
                     W_iplus1 = Cormode_0[SU.tuple_to_int(bin_gate_label[s:])]
                 elif x == 1:
@@ -462,27 +465,40 @@ class Prover(Interactor):
 
                 # copy_k[i] is the length of the upstream but now we hard code length 1
                 # TODO: this need to be fixed later.
-                if gate_type == "add":
-                    poly_values[x] = (
-                        poly_values[x]
-                        + SU.chi(
-                            z1 + bc_partial + (x,),
-                            (0,) + bin_gate_label[:s],
-                            copy_k[i] + s,
-                            p,
-                        )
-                        * W_iplus1
-                    ) % p
-                    poly_values[x] = (
-                        poly_values[x]
-                        + SU.chi(
-                            z1 + bc_partial + (x,),
-                            (1,) + bin_gate_label[:s],
-                            copy_k[i] + s,
-                            p,
-                        )
-                        * W_iplus1
-                    ) % p
+                if i == 0:
+                    if gate_type == "add":
+                        poly_values[x] = (
+                            poly_values[x]
+                            + SU.chi(
+                                z1 + bc_partial + (x,),
+                                (0,) + bin_gate_label[:s],
+                                copy_k[i] + s,
+                                p,
+                            )
+                            * W_iplus1
+                        ) % p
+                        poly_values[x] = (
+                            poly_values[x]
+                            + SU.chi(
+                                z1 + bc_partial + (x,),
+                                (1,) + bin_gate_label[:s],
+                                copy_k[i] + s,
+                                p,
+                            )
+                            * W_iplus1
+                        ) % p
+                else:
+                    if gate_type == "add":
+                        poly_values[x] = (
+                            poly_values[x]
+                            + SU.chi(
+                                z1 + bc_partial + (x,),
+                                upstream + bin_gate_label[:s],
+                                copy_k[i] + s,
+                                p,
+                            )
+                            * W_iplus1
+                        ) % p
                 # elif gate_type == "mult":
                 #     # print("mult gate")
                 #     poly_values[x] = (
@@ -699,7 +715,14 @@ class Prover(Interactor):
 
         # randomly append sth to keep things right in later rounds.
         self.append_line(random_element)
-        return self.sumcheck_random_elements[num_layer]
+        value_eval = SU.DP_eval_MLE(
+            self.circ.get_W(num_layer + 1),
+            self.sumcheck_random_elements[num_layer],
+            k[num_layer + 1],
+            self.circ.get_p(),
+        )
+        return value_eval, self.sumcheck_random_elements[num_layer]
+        # return self.sumcheck_random_elements[num_layer]
 
     def send_final_Wd_evaluation(self):
         """

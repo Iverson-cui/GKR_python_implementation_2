@@ -344,11 +344,21 @@ class Verifier(Interactor):
 
         return new_random_vector
 
-    def encapsulate_verification_check(self, random_vector: list):
+    def encapsulate_verification_check(self, random_vector: list, value: int):
         """
         In encapsulation version, there is no line. We just need to check the unique claim.
         """
         self.append_RV(tuple(random_vector))
+        self.append_claimed_values_at_end_of_layer(
+            # SU.DP_eval_MLE(
+            #     self.circ.get_W(num_layer + 1),
+            #     random_vector,
+            #     self.get_k()[num_layer + 1],
+            #     self.get_p(),
+            # )
+            value
+        )
+        # TODO
         return random_vector
 
     def reduce_two_to_one_without_verification(self, i: int, poly: list):

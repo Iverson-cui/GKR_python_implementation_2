@@ -99,9 +99,10 @@ def execute(C):
             for s in range(k[i + 1] - num_copy[i] + 1):
                 prover_msg = prover_inst.partial_sumcheck(i, s, r)
                 r = verifier_inst.partial_sumcheck_check(i, s, prover_msg)
-            random_vector = prover_inst.encapsulate_verification(i, r)
-            verifier_inst.encapsulate_verification_check(random_vector)
-            prover_inst.receive_random_vector(i + 1, random_vector)
+            # temp_tuple[0] is the value, while temp_tuple[1] is the random element.
+            temp_tuple = prover_inst.encapsulate_verification(i, r)
+            verifier_inst.encapsulate_verification_check(temp_tuple[1], temp_tuple[0])
+            prover_inst.receive_random_vector(i + 1, temp_tuple[1])
 
         # for normal version, last layer in the circuit
         else:
