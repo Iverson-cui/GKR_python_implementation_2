@@ -453,7 +453,6 @@ class Prover(Interactor):
             num_downstream = (k[i + 1] - num_copy[i]) - copy_k[i]
             upstream = SU.int_to_bin(gate // 2**num_downstream, copy_k[i])
             for x in range(3):
-
                 if x == 0:
                     W_iplus1 = Cormode_0[SU.tuple_to_int(bin_gate_label[s:])]
                 elif x == 1:
@@ -464,7 +463,7 @@ class Prover(Interactor):
                     raise ValueError("x must be 0, 1 or 2, but got {}".format(x))
 
                 # copy_k[i] is the length of the upstream but now we hard code length 1
-                # TODO: this need to be fixed later.
+                # TODO: This need to be fixed. Now it only supports copy_k[i]=1. Because upstream when i==0 is hard coded as 0 and 1.
                 if i == 0:
                     if gate_type == "add":
                         poly_values[x] = (

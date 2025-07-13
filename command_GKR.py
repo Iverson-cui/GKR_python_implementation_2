@@ -11,7 +11,7 @@ import os
 # current_dir is the folder which contains the current python file.
 current_dir = os.path.dirname(os.path.abspath(__file__))
 # print("current_dir:", current_dir)
-data_dir = os.path.join(current_dir, "./test_circuit/encap_test.csv")
+data_dir = os.path.join(current_dir, "./test_circuit/8_3d_encap.csv")
 # file_path = os.path.join(data_dir, "events_semantic.json")
 
 
@@ -80,6 +80,7 @@ def execute(C):
             "Output layer communication time:", output_layer_time - initialization_time
         )
     # iterate over the layers(Every iteration is a round of GKR)
+    # d==3 in our circuit.
     for i in range(d):
         if TIME_INFO:
             loop_start_time = time.time()
@@ -184,6 +185,6 @@ def execute(C):
 
 # C = [circuit.createCircuit("circuitdata-{}.csv".format(i), 10007) for i in range(1, 5)]
 # Deep_C = circuit.createCircuit("deep_circuit-1.csv", 10007)
-test_circuit = circuit.createCircuit(data_dir, [1, 2, 6, 0], 10007)
+test_circuit = circuit.createCircuit(data_dir, [3, 4, 8, 6], 10007)
 execution_time = timeit.timeit(lambda: execute(test_circuit), number=5)
 print("Execution time for test_circuit: ", execution_time / 5, "seconds")
