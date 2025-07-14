@@ -125,10 +125,8 @@ class Prover(Interactor):
         # z = tuple(self.get_random_vector(i)) + bc
         # W_iplus1 is a dictionary that takes in k[i+1] bits.
         W_iplus1 = circ.get_W(i + 1)
-        # z1 is the gate random, z1 is of length copy_k[i+1].
-        # z1 = self.get_random_vector(i)[num_copy[i + 1] :]
-        # z2 is the copy random, z2 is of length num_copy[i + 1] because it acts as the input to the copy bits of W_i+1
-        z2 = self.get_random_vector(i)[: num_copy[i + 1]]
+        # z2 conform to layer i copy assignment, instead of layer i+1 copy assignment.
+        z2 = self.get_random_vector(i)[: num_copy[i]]
         # Initialize variables that might be used later
         Cormode_b_0 = None
         Cormode_b_1 = None
