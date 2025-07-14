@@ -222,6 +222,7 @@ def chi(a: tuple, z: tuple, N: int, p: int):
     answer = 1
     for i in range(N):
         next_term = a[i] * z[i] + (1 - a[i]) * (1 - z[i]) % p
+        print("a=", a[i], "z=", z[i], "next_term=", next_term)
         answer = answer * next_term % p
     return answer
 

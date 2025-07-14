@@ -12,6 +12,7 @@ import os
 current_dir = os.path.dirname(os.path.abspath(__file__))
 # print("current_dir:", current_dir)
 data_dir = os.path.join(current_dir, "./test_circuit/4_3dconv.csv")
+test_data_dir = os.path.join(current_dir, "./output.csv")
 # file_path = os.path.join(data_dir, "events_semantic.json")
 
 
@@ -170,6 +171,67 @@ def execute(C):
 
 # C = [circuit.createCircuit("circuitdata-{}.csv".format(i), 10007) for i in range(1, 5)]
 # Deep_C = circuit.createCircuit("deep_circuit-1.csv", 10007)
-test_circuit = circuit.createCircuit(data_dir, [1, 2, 3, 4, 5, 6, 7, 5], 10007)
-execution_time = timeit.timeit(lambda: execute(test_circuit), number=1)
-print("Execution time for test_circuit: ", execution_time / 1, "seconds")
+test_circuit = circuit.createCircuit(test_data_dir, [1, 1], 10007)
+# execution_time = timeit.timeit(lambda: execute(test_circuit), number=1)
+# print("Execution time for test_circuit: ", execution_time / 1, "seconds")
+
+
+# start test
+# test 1: naive
+print("=" * 50)
+print("TEST 1 BEGINS")
+print("=" * 50)
+# z: 2 bits wide, gate inputs: 3 bits wide.
+i = 0
+# 7 is considered z1, the gate label and 9 is considered z2, the copy label.
+z = (7, 9)
+k = test_circuit.get_k()  # k=[2,3]
+p = test_circuit.get_p()  # p=10007
+result_1 = 0
+W_1 = test_circuit.get_W(1)
+for gate in range(2 ** k[0]):
+    input_gate = test_circuit.get_inputs(0, gate)  # [0,1] [2,3] [4,5] [6,7]
+    print("for gate", gate, "in layer 0, its input_gate is", input_gate)
+    gate_value_add = sum(W_1[SU.int_to_bin(input_val, 3)] for input_val in input_gate)
+    print("first gate value=", W_1[SU.int_to_bin(input_gate[0], 3)])
+    print("second gate value=", W_1[SU.int_to_bin(input_gate[1], 3)])
+    print("gate_value_add:", gate_value_add)
+    print(
+        "chi=", SU.chi(SU.int_to_bin(gate, 2), (z[1], z[0]), 2, p), (z[1], z[0]), 2, p
+    )
+    result_1 = (
+        result_1 + SU.chi((z[1], z[0]), SU.int_to_bin(gate, 2), 2, p) * gate_value_add
+    ) % p
+    print("result_1 after gate", gate, ":", result_1)
+print("result_1:", result_1)
+
+copy_k = test_circuit.get_copy_k()  # copy_k=[1,2]
+num_copy = test_circuit.get_num_copy()  # num_copy=[1,1]
+# a1: 1 bit wide, b1 and c1: 2 bits wide, a2: 1 bit wide.
+# test 2: iteration through 6-bit binary list
+print("=" * 50)
+print("TEST 2 BEGINS")
+print("=" * 50)
+result_2 = 0
+# gate is a1
+for gate in range(2 ** copy_k[0]):
+    input_gate = test_circuit.get_inputs(0, gate)  # [0,1] [2,3]
+    print(
+        "for gate",
+        gate,
+        "of a copy in layer 0, its input_gate within the same copy in layer 1 is",
+        input_gate,
+    )
+    # copy is a2
+    for copy in range(2 ** num_copy[0]):
+        beta = SU.chi((gate, copy), (z[0], z[1]), k[0], p)
+        print("beta for gate", gate, "and copy", copy, "is", beta)
+        input_vals = [
+            (copy, *SU.int_to_bin(input_gate[0], 2)),
+            (copy, *SU.int_to_bin(input_gate[1], 2)),
+        ]
+        print("input_vals:", input_vals)
+        gate_value_add = sum(W_1[input_val] for input_val in input_vals)
+        print("gate_value_add:", gate_value_add)
+        result_2 = (result_2 + beta * gate_value_add) % p
+        print("result_2 after gate", gate, "and copy", copy, ":", result_2)
