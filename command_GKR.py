@@ -170,6 +170,6 @@ def execute(C):
 
 # C = [circuit.createCircuit("circuitdata-{}.csv".format(i), 10007) for i in range(1, 5)]
 # Deep_C = circuit.createCircuit("deep_circuit-1.csv", 10007)
-test_circuit = circuit.createCircuit(data_dir, [1, 2, 3, 4, 5, 6, 7, 7], 10007)
+test_circuit = circuit.createCircuit(data_dir, [1, 2, 3, 4, 5, 6, 7, 8], 10007)
 execution_time = timeit.timeit(lambda: execute(test_circuit), number=10)
 print("Execution time for test_circuit: ", execution_time / 10, "seconds")
