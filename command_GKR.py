@@ -193,15 +193,20 @@ for gate in range(2 ** k[0]):
     input_gate = test_circuit.get_inputs(0, gate)  # [0,1] [2,3] [4,5] [6,7]
     print("for gate", gate, "in layer 0, its input_gate is", input_gate)
     gate_value_add = sum(W_1[SU.int_to_bin(input_val, 3)] for input_val in input_gate)
+    # gate_value_mult1 = W_1[SU.int_to_bin(input_gate[0], 3)]
+    # gate_value_mult2 = W_1[SU.int_to_bin(input_gate[1], 3)]
+    # gate_value_mult = gate_value_mult2 * gate_value_mult1 % p
     print("first gate value=", W_1[SU.int_to_bin(input_gate[0], 3)])
     print("second gate value=", W_1[SU.int_to_bin(input_gate[1], 3)])
     print("gate_value_add:", gate_value_add)
-    print(
-        "chi=", SU.chi(SU.int_to_bin(gate, 2), (z[1], z[0]), 2, p), (z[1], z[0]), 2, p
-    )
+    # print("gate_value_mult:", gate_value_mult)
+    print("chi=", SU.chi(SU.int_to_bin(gate, 2), (z[1], z[0]), 2, p))
     result_1 = (
         result_1 + SU.chi((z[1], z[0]), SU.int_to_bin(gate, 2), 2, p) * gate_value_add
     ) % p
+    # result_1 = (
+    #     result_1 + SU.chi((z[1], z[0]), SU.int_to_bin(gate, 2), 2, p) * gate_value_mult
+    # ) % p
     print("result_1 after gate", gate, ":", result_1)
 print("result_1:", result_1)
 
@@ -232,6 +237,39 @@ for gate in range(2 ** copy_k[0]):
         ]
         print("input_vals:", input_vals)
         gate_value_add = sum(W_1[input_val] for input_val in input_vals)
+        # gate_value_mult1 = W_1[input_vals[0]]
+        # gate_value_mult2 = W_1[input_vals[1]]
+        # gate_value_mult = (gate_value_mult2 * gate_value_mult1) % p
         print("gate_value_add:", gate_value_add)
+        # print("gate_value_mult:", gate_value_mult)
+        # result_2 = (result_2 + beta * gate_value_mult) % p
         result_2 = (result_2 + beta * gate_value_add) % p
         print("result_2 after gate", gate, "and copy", copy, ":", result_2)
+
+# test 3 starts.
+print("=" * 50)
+print("TEST 3 BEGINS")
+print("=" * 50)
+result_3 = 0
+
+for gate in range(2 ** copy_k[0]):
+    input_gate = test_circuit.get_inputs(0, gate)  # [0,1] [2,3]
+    print(
+        "for gate",
+        gate,
+        "of a copy in layer 0, its input_gate within the same copy in layer 1 is",
+        input_gate,
+    )
+    # input_gate_binary is like [(0,0),(0,1)]
+    input_gate_binary = [SU.int_to_bin(val, 2) for val in input_gate]
+    beta = test_circuit.eval_MLE_add(
+        0, (z[0], *input_gate_binary[0], *input_gate_binary[1])
+    )
+    # beta = test_circuit.eval_MLE_mult(
+    #     0, (z[0], *input_gate_binary[0], *input_gate_binary[1])
+    # )
+    W_b = SU.DP_eval_MLE(W_1, (z[1], *SU.int_to_bin(input_gate[0], 2)), 3, p)
+    W_c = SU.DP_eval_MLE(W_1, (z[1], *SU.int_to_bin(input_gate[1], 2)), 3, p)
+    result_3 = (result_3 + beta * (W_b + W_c)) % p
+    # result_3 = (result_3 + beta * (W_b * W_c)) % p
+    print("result_3 after gate", gate, "is", result_3)

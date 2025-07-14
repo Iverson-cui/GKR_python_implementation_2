@@ -182,7 +182,7 @@ class Circuit:
 
     def eval_MLE_add(self, i, x):
         """
-        i is the layer number, x is the input value of the MLE of add.
+        i is the layer number, x is the tuple containing input value of the MLE of add.
 
         # this will allow fast computation of eval_MLE for the \tilde{add}
         # and \tilde{mult}. #FINISH THIS (will be used in f_i code, and also)
@@ -231,9 +231,9 @@ class Circuit:
             x
         ), f"length of vector is not correct, expected {N} but got {len(x)}"
         answer = 0
-        if i == self.get_depth() - 1:
-            # self.get_copy_k()[i + 1] = self.get_k()[i + 1]
-            N = self.get_copy_k()[i] + 2 * self.get_k()[i + 1]
+        # if i == self.get_depth() - 1:
+        #     # self.get_copy_k()[i + 1] = self.get_k()[i + 1]
+        #     N = self.get_copy_k()[i] + 2 * self.get_k()[i + 1]
         for gate in range(2 ** self.copy_k[i]):
             if self.get_type(i, gate) == "mult":
 
