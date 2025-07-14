@@ -30,8 +30,8 @@ import circuit
 import prover_GKR as P_GKR
 import verifier_GKR as V_GKR
 
-DEBUG_INFO = False
-TIME_INFO = True
+DEBUG_INFO = True
+TIME_INFO = False
 
 
 def execute(C):
