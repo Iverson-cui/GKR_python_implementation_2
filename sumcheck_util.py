@@ -341,6 +341,7 @@ def Cormode_eval_W(
     result = [0] * (2 ** (num_var - step))
     # label is the gate label like (1,0,0,1), value is the value of W_i+1 at that label.
     for label, value in W_binary.items():
+        # class_index means which term does current gate contribute to.
         class_index = tuple_to_int(label[step:])
         # chi want 2 tuples. First is the tuple of the gate label, which is in variable label. second is the tuple consisting of s bit input and num_var - s bit gate label.
         # Or we can think of it like this: first is the former s bits of the gate label, second is the input.

@@ -214,7 +214,6 @@ def Prover(poly, L, N, m, d, p, step, r_vec, params):
 # m is number of variables of poly
 # d is the maximal degree of any given variables. We assume that this is <=2
 # (this is reflected in various other parts of our code)
-# TODO: improve this!!!
 def Verifier(poly, L, N, m, d, params, p):
     r_vec = []
     g_prev = []
