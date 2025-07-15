@@ -99,10 +99,22 @@ class Verifier(Interactor):
             return 0
         elif s == 1:
             # first, check compatibility of the 0th and first poly.
-            sum_new_poly_at_0_1 = (
-                SU.quadratic_evaluation(poly, 0, p)
-                + SU.quadratic_evaluation(poly, 1, p)
-            ) % p
+            if i == d - 1:
+                assert (
+                    len(poly) == 4
+                ), "the poly at layer {} step {} should be of length 4, but got {}".format(
+                    i, s, len(poly)
+                )
+                sum_new_poly_at_0_1 = (
+                    SU.cubic_evaluation(poly, 0, p) + SU.cubic_evaluation(poly, 1, p)
+                ) % p
+            else:
+                sum_new_poly_at_0_1 = (
+                    SU.quadratic_evaluation(poly, 0, p)
+                    + SU.quadratic_evaluation(poly, 1, p)
+                ) % p
+            # In this case, old_value is just the evaluation of a constant polynomial
+            # quadratic or cubic, both are fine.
             old_value = SU.quadratic_evaluation(
                 self.get_specific_polynomial(i, s - 1), 0, p
             )
@@ -120,13 +132,26 @@ class Verifier(Interactor):
         elif 1 < s <= 2 * (k[i + 1] - num_copy[i]):
             # The reason to separate out the case s == 1 is that, in each round of sumcheck we need to compare MLE at 0 + MLE at 1 = last round value. Last round value is calculated when used. This means we have to obtain the random element and poly of last round every time. When s=1, there is no last round random element, and poly is just a value.
             r = self.get_sumcheck_random_element(i, s - 1)
-            sum_new_poly_at_0_1 = (
-                SU.quadratic_evaluation(poly, 0, p)
-                + SU.quadratic_evaluation(poly, 1, p)
-            ) % p
-            old_value = SU.quadratic_evaluation(
-                self.get_specific_polynomial(i, s - 1), r, p
-            )
+            if i == d - 1:
+                assert (
+                    len(poly) == 4
+                ), "the poly at layer {} step {} should be of length 4, but got {}".format(
+                    i, s, len(poly)
+                )
+                sum_new_poly_at_0_1 = (
+                    SU.cubic_evaluation(poly, 0, p) + SU.cubic_evaluation(poly, 1, p)
+                ) % p
+                old_value = SU.cubic_evaluation(
+                    self.get_specific_polynomial(i, s - 1), r, p
+                )
+            else:
+                sum_new_poly_at_0_1 = (
+                    SU.quadratic_evaluation(poly, 0, p)
+                    + SU.quadratic_evaluation(poly, 1, p)
+                ) % p
+                old_value = SU.quadratic_evaluation(
+                    self.get_specific_polynomial(i, s - 1), r, p
+                )
             assert (
                 sum_new_poly_at_0_1 == old_value % p
             ), "the check failed at layer {} step {}, {} is not equal to {}. copy_k[i]={},copy_k[i+1]={}".format(
@@ -221,7 +246,12 @@ class Verifier(Interactor):
         # The verifier needs to get the old claimed value to compare it with the new one.
         if TIME_INFO:
             old_claimed_value_start_time = time.time()
-        old_claimed_value_of_fi = SU.quadratic_evaluation(last_poly, SRE_layer_i[-1], p)
+        if i == self.get_circ().get_depth() - 1:
+            old_claimed_value_of_fi = SU.cubic_evaluation(last_poly, SRE_layer_i[-1], p)
+        else:
+            old_claimed_value_of_fi = SU.quadratic_evaluation(
+                last_poly, SRE_layer_i[-1], p
+            )
         if TIME_INFO:
             old_claimed_value_end_time = time.time()
             print(

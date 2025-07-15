@@ -96,6 +96,9 @@ class Prover(Interactor):
             0,
             0,
         ]  # initialize the values of my poly at the inputs 0, 1, 2
+        # when i==d-1, we need four values because the poly is of degree 3. Later we append this extra_value to poly_values array.
+        if i == d - 1:
+            extra_value = 0
         #        Li = circ.get_layer(i)
         # N = k[i] + 2 * k[i + 1]
         # the following is the main content of the partial boolean hypercube sum
@@ -131,10 +134,12 @@ class Prover(Interactor):
         Cormode_b_0 = None
         Cormode_b_1 = None
         Cormode_b_2 = None
+        Cormode_b_3 = None
         Cormode_c = None
         Cormode_c_0 = None
         Cormode_c_1 = None
         Cormode_c_2 = None
+        Cormode_c_3 = None
 
         # First case. Use cormode for b in every s and Cormode for c once for all s.
         if s < k[i + 1] - num_copy[i]:
@@ -148,6 +153,9 @@ class Prover(Interactor):
             )
             Cormode_b_2 = SU.Cormode_eval_W(
                 W_iplus1, z2 + bc_partial + (2,), s + num_copy[i], k[i + 1], p
+            )
+            Cormode_b_3 = SU.Cormode_eval_W(
+                W_iplus1, z2 + bc_partial + (3,), s + num_copy[i], k[i + 1], p
             )
             # Cormode_c can be optimized. when s<copy_k[i+1], Cormode_c is always the same. But Now I have no idea how to optimize it.
             # Cormode_c takes in length copy_k[i+1]
@@ -166,6 +174,9 @@ class Prover(Interactor):
             partial_input_to_c_2 = (
                 z2 + bc_partial[k[i + 1] - num_copy[i] : s - 1] + (2,)
             )
+            partial_input_to_c_3 = (
+                z2 + bc_partial[k[i + 1] - num_copy[i] : s - 1] + (3,)
+            )
             Cormode_c_0 = SU.Cormode_eval_W(
                 W_iplus1,
                 partial_input_to_c_0,
@@ -183,6 +194,13 @@ class Prover(Interactor):
             Cormode_c_2 = SU.Cormode_eval_W(
                 W_iplus1,
                 partial_input_to_c_2,
+                s - (k[i + 1] - num_copy[i]) + num_copy[i],
+                k[i + 1],
+                p,
+            )
+            Cormode_c_3 = SU.Cormode_eval_W(
+                W_iplus1,
+                partial_input_to_c_3,
                 s - (k[i + 1] - num_copy[i]) + num_copy[i],
                 k[i + 1],
                 p,
@@ -211,8 +229,12 @@ class Prover(Interactor):
                 + a[k[i] + k[i + 1] + num_copy[i] :]
             )
             assert len(a_gate) == copy_k[i] + 2 * (k[i + 1] - num_copy[i])
-            for x in range(3):
-
+            # x in range 3 is the common case. For mult case, we need to make x in range 4.
+            for x in range(4):
+                # common case still only has 3.
+                if not i == d - 1:
+                    if x == 3:
+                        continue
                 # No matter in which case, we all get poly_values[x] filled
                 gate_type = circ.get_type(i, gate)
                 if s < k[i + 1] - num_copy[i]:
@@ -241,6 +263,14 @@ class Prover(Interactor):
                                 ]
                             )
                         ]
+                    elif x == 3:
+                        W_iplus1_at_b = Cormode_b_3[
+                            SU.tuple_to_int(
+                                a_gate[
+                                    copy_k[i] + s : copy_k[i] + k[i + 1] - num_copy[i]
+                                ]
+                            )
+                        ]
                     else:
                         raise ValueError("x must be 0, 1 or 2, but got {}".format(x))
 
@@ -261,6 +291,10 @@ class Prover(Interactor):
                     elif x == 2:
                         W_iplus1_at_b = SU.DP_eval_MLE(
                             W_iplus1, z2 + bc_partial + (2,), k[i + 1], p
+                        )
+                    elif x == 3:
+                        W_iplus1_at_b = SU.DP_eval_MLE(
+                            W_iplus1, z2 + bc_partial + (3,), k[i + 1], p
                         )
                     else:
                         raise ValueError("x must be 0, 1 or 2, but got {}".format(x))
@@ -285,6 +319,10 @@ class Prover(Interactor):
                         ]
                     elif x == 2:
                         W_iplus1_at_c = Cormode_c_2[
+                            SU.tuple_to_int(a_gate[copy_k[i] + s :])
+                        ]
+                    elif x == 3:
+                        W_iplus1_at_c = Cormode_c_3[
                             SU.tuple_to_int(a_gate[copy_k[i] + s :])
                         ]
                     else:
@@ -316,6 +354,13 @@ class Prover(Interactor):
                             k[i + 1],
                             p,
                         )
+                    elif x == 3:
+                        W_iplus1_at_c = SU.DP_eval_MLE(
+                            W_iplus1,
+                            z2 + bc_partial[k[i + 1] - num_copy[i] :] + (3,),
+                            k[i + 1],
+                            p,
+                        )
                     else:
                         raise ValueError("x must be 0, 1 or 2, but got {}".format(x))
                 else:
@@ -338,36 +383,43 @@ class Prover(Interactor):
                         )
                         * (W_iplus1_at_b + W_iplus1_at_c)
                     ) % p
+                # here we hard-codely assume that mult gates are only contained in the last layer.
                 elif gate_type == "mult":
-                    # print("mult gate")
-                    poly_values[x] = (
-                        poly_values[x]
-                        + SU.chi(
-                            a_gate[: copy_k[i] + s],
-                            self.get_random_vector(i)[num_copy[i] :]
-                            + bc_partial
-                            + (x,),
-                            copy_k[i] + s,
-                            p,
-                        )
-                        * (W_iplus1_at_b * W_iplus1_at_c)
-                    ) % p
-                # W_iplus1_at_b = SU.DP_eval_MLE(W_iplus1, b, k[i + 1], p)
-                # W_iplus1_at_c = SU.DP_eval_MLE(W_iplus1, c, k[i + 1], p)
-                # gate_type = circ.get_type(i, gate)
-                # This is the Tormode method. Each gate only contribute to one term, so we can just iterate over the gates. This also reduce the need to evaluate add and mult.
-                # if gate_type == "add":
-                #     poly_values[x] = (
-                #         poly_values[x]
-                #         + SU.chi(a, z, N, p) * (W_iplus1_at_b + W_iplus1_at_c)
-                #     ) % p
-                # elif gate_type == "mult":
-                #     poly_values[x] = (
-                #         poly_values[x]
-                #         + SU.chi(a, z, N, p) * (W_iplus1_at_b * W_iplus1_at_c)
-                #     ) % p
-        poly = SU.quadratic_interpolate(poly_values, p)
-        return poly
+                    if x == 3:
+                        extra_value = (
+                            extra_value
+                            + SU.chi(
+                                a_gate[: copy_k[i] + s],
+                                self.get_random_vector(i)[num_copy[i] :]
+                                + bc_partial
+                                + (x,),
+                                copy_k[i] + s,
+                                p,
+                            )
+                            * (W_iplus1_at_b * W_iplus1_at_c)
+                        ) % p
+                    else:
+                        poly_values[x] = (
+                            poly_values[x]
+                            + SU.chi(
+                                a_gate[: copy_k[i] + s],
+                                self.get_random_vector(i)[num_copy[i] :]
+                                + bc_partial
+                                + (x,),
+                                copy_k[i] + s,
+                                p,
+                            )
+                            * (W_iplus1_at_b * W_iplus1_at_c)
+                        ) % p
+        # for degree 2 poly, namely common layers
+        if not i == d - 1:
+            poly = SU.quadratic_interpolate(poly_values, p)
+            return poly
+        # for degree 3 poly, namely the last layer
+        else:
+            poly_values.append(extra_value)
+            poly = SU.cubic_interpolate(poly_values, p)
+            return poly
 
     def partial_sumcheck(self, i: int, s: int, random_element: int):
         """
@@ -469,11 +521,6 @@ class Prover(Interactor):
             k[i + 1],
             p,
         )
-        # deg_of_poly = len(poly)-1
-        # string_of_poly = "+".join(\
-        #                           ["{}*x^{}".format(poly[k],deg_of_poly - k) for k in range(deg_of_poly+1)])
-        # print("The univariate polynomial that the prover sends at the end of step {} on the line is: {}".\
-        #       format(i, string_of_poly))
         return poly
 
     def send_final_Wd_evaluation(self):

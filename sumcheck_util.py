@@ -134,7 +134,7 @@ def cubic_interpolate(values: list, p: int) -> list:
             the constant coefficient is the first)
     Examples:
     >>> cubic_interpolate([1, 2, 3, 4], 7)
-    [1, 0, 0, 0]
+    [1, 1, 0, 0]
     >>> cubic_interpolate([0, 1, 8, 27], 97)
     [0, 0, 0, 1]
     >>> cubic_interpolate([0, 1, 4, 9], 97)
@@ -253,6 +253,8 @@ def polynomial_evaluation(poly, x, p):
     Return the value of the polynomial evaluated at x mod p
 
     Here, poly is a list of coefficients of the polynomial like what the above function returns. x is a single evaluation point.
+
+    This function may perform the same operation as the `cubic_evaluation` or `quadratic_evaluation` functions, but it is more general and can handle polynomials of any degree.
     """
     reverse_poly = poly[::-1]
     answer = 0
