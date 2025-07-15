@@ -49,7 +49,7 @@ class Prover(Interactor):
         self.random_vectors.append(r_i)
         D_i = self.circ.get_W(i)
         # evaluate get_W(i) at the random vector r_i
-        evaluation_at_random_vector = SU.eval_MLE(D_i, r_i, k[i], p)
+        evaluation_at_random_vector = SU.DP_eval_MLE(D_i, r_i, k[i], p)
         self.append_evaluations_RV(evaluation_at_random_vector)
 
     def sum_fi(self, i: int, s: int):
