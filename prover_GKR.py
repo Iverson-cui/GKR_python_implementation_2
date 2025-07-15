@@ -421,6 +421,41 @@ class Prover(Interactor):
             poly = SU.cubic_interpolate(poly_values, p)
             return poly
 
+    def sum_fi_mult_layer(self, layer: int, step: int):
+        """
+        Based on our verification, the optimized parallelism proposed by us does not apply itself to mult layer. We need to use the original data parallelism to support mult layer.
+        """
+        circ = self.get_circ()
+        d = circ.get_depth()
+        p = circ.get_p()
+        k = circ.get_k()
+        copy_k = circ.get_copy_k()
+        num_copy = circ.get_num_copy()
+        assert layer >= 0 and layer < d, "i is out of bounds"
+        assert layer < len(self.get_random_vectors()), "haven't reached this layer yet"
+        # the partial sumcheck function address the case of s=0.
+        assert (
+            1 <= step <= 2 * (k[layer + 1] - num_copy[layer])
+        ), "In parallel settings, the step s in sumcheck is out of bounds"
+        # check the len and type of RV
+        assert isinstance(
+            self.get_random_vector(layer), tuple
+        ), f"RV must be a tuple, but got {type(self.get_random_vector(layer))}"
+        assert (
+            len(self.get_random_vector(layer)) == k[layer]
+        ), f"RV must have {k[layer]} elements, but got {len(self.get_random_vector(layer))}"
+
+        # step can range from 0 to k[i]+2*(copy_k[i+1]).
+        # Iteration of step can be separated into 4 parts, corresponding to gradually determining a_1, b_1, c_1 and a_2.
+        # When determining a_1, b_1 and a_2, in every step, we need to do a streaming pass over all of the gate in a copy.
+        # When determining a_2, mult is already fixed.
+        current_random_elements = self.get_layer_i_sumcheck_random_elements(layer)
+        # bc_partial is of length step - 1. It needs to append 0/1/2/3 to the final length step list.
+        bc_partial = tuple(current_random_elements[: step - 1])
+        W_iplus1 = circ.get_W(layer + 1)
+        # First step:
+        ## step 1: prepare materials.
+
     def partial_sumcheck(self, i: int, s: int, random_element: int):
         """
         partial_sumcheck
