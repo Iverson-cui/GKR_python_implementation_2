@@ -29,7 +29,7 @@ def int_to_bin(i: int, d: int) -> tuple:
     if i < 0 or 2**d < i:
         print("out of bounds, i={}".format(i))
     #        return tuple([])
-    assert i >= 0 and i <= 2**d
+    assert i >= 0 and i <= 2**d, "i={} is out of bounds for d={}".format(i, d)
 
     # bin(5)='0b101', bin(5)[2:] = '101'
     str_bin = bin(i)[2:]  # bin = '0b...'
@@ -283,6 +283,12 @@ def chi(a: tuple, z: tuple, N: int, p: int):
 
     N here is the input length, i.e., the number of variables in the boolean hypercube.
     """
+    assert (
+        len(a) == N and len(z) == N
+    ), "a and z must both be of length N. Now a is of length {} and z is of length {}, while N={}".format(
+        len(a), len(z), N
+    )
+
     answer = 1
     for i in range(N):
         next_term = a[i] * z[i] + (1 - a[i]) * (1 - z[i]) % p
@@ -332,6 +338,14 @@ def DP_eval_MLE(L: dict, r: tuple, N: int, p: int) -> int:
     This function takes in the same arguments as eval_MLE, but uses a dynamic programming approach to compute the MLE.
     """
 
+    assert (
+        len(L) == 2**N
+    ), "Number of elements in L must be 2^N. Now L is of length {}, but N is {}".format(
+        len(L), N
+    )
+    assert (
+        len(r) == N
+    ), "r must be of length N. Now r is of length {}, but N is {}".format(len(r), N)
     answer = 0
     chi_values = [1]
     for i in range(N):
