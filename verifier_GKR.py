@@ -141,12 +141,12 @@ class Verifier(Interactor):
             # Then append the random challenge of the last variable to the SRE list.
             self.append_element_SRE(i, new_random_element)
 
-            if s == 2 * copy_k[i + 1]:
+            if s == 2 * (k[i + 1] - num_copy[i]):
                 layer_i_random_elements = self.get_layer_i_sumcheck_random_elements(i)
-                assert (
-                    len(layer_i_random_elements) == 2 * copy_k[i + 1]
+                assert len(layer_i_random_elements) == 2 * (
+                    k[i + 1] - num_copy[i]
                 ), "the number of random elements the verifier has added to layer {} is not 2*k[i+1], which means {} is not {}".format(
-                    i, len(layer_i_random_elements), 2 * copy_k[i + 1]
+                    i, len(layer_i_random_elements), 2 * (k[i + 1] - num_copy[i])
                 )
 
             return new_random_element

@@ -277,15 +277,15 @@ class Prover(Interactor):
 
                     if x == 0:
                         W_iplus1_at_c = Cormode_c_0[
-                            SU.tuple_to_int(a_gate[k[i + 1] - num_copy[i] + s :])
+                            SU.tuple_to_int(a_gate[copy_k[i] + s :])
                         ]
                     elif x == 1:
                         W_iplus1_at_c = Cormode_c_1[
-                            SU.tuple_to_int(a_gate[k[i + 1] - num_copy[i] + s :])
+                            SU.tuple_to_int(a_gate[copy_k[i] + s :])
                         ]
                     elif x == 2:
                         W_iplus1_at_c = Cormode_c_2[
-                            SU.tuple_to_int(a_gate[k[i + 1] - num_copy[i] + s :])
+                            SU.tuple_to_int(a_gate[copy_k[i] + s :])
                         ]
                     else:
                         raise ValueError("x must be 0, 1 or 2, but got {}".format(x))
