@@ -163,8 +163,8 @@ class Interactor:
         """
         assert (
             isinstance(z_tuple, tuple)
-            and len(z_tuple) == self.get_num_copy()[num_layer + 1]
-        ), f"z_tuple must be a tuple of length {self.get_num_copy()[num_layer + 1]}, but got {type(z_tuple)} with length {len(z_tuple) if hasattr(z_tuple, '__len__') else 'N/A'}"
+            and len(z_tuple) == self.get_num_copy()[num_layer]
+        ), f"z_tuple must be a tuple of length {self.get_num_copy()[num_layer]}, but got {type(z_tuple)} with length {len(z_tuple) if hasattr(z_tuple, '__len__') else 'N/A'}. now z_tuple={z_tuple} and len(z_tuple)={len(z_tuple)} while num_copy[layer]={self.get_num_copy()[num_layer]}"
         # In parallelism settings, the random element needs to be further processed.
         length = len(self.sumcheck_random_elements[num_layer])
 

@@ -11,7 +11,7 @@ import os
 # current_dir is the folder which contains the current python file.
 current_dir = os.path.dirname(os.path.abspath(__file__))
 # print("current_dir:", current_dir)
-data_dir = os.path.join(current_dir, "./test_circuit/4_3dconv.csv")
+data_dir = os.path.join(current_dir, "./test_circuit/parallel_test.csv")
 # file_path = os.path.join(data_dir, "events_semantic.json")
 
 
@@ -94,7 +94,7 @@ def execute(C):
                     i, copy_k[i], num_copy, k[i], copy_k[i + 1]
                 )
             )
-        for s in range(2 * copy_k[i + 1] + 1):
+        for s in range(2 * (k[i + 1] - num_copy[i]) + 1):
             # s spans from 0 to 2*copy_k[i+1].
             # when s=0, the prover just passes the MLE evaluated at the random vector passed by verifier. This is evident from p34 of the book. Prover needs to first send the sum of binary input of f_i.
             # i means layer number, s means step number, r means random element.
@@ -170,6 +170,6 @@ def execute(C):
 
 # C = [circuit.createCircuit("circuitdata-{}.csv".format(i), 10007) for i in range(1, 5)]
 # Deep_C = circuit.createCircuit("deep_circuit-1.csv", 10007)
-test_circuit = circuit.createCircuit(data_dir, [1, 2, 3, 4, 5, 6, 7, 8], 10007)
-execution_time = timeit.timeit(lambda: execute(test_circuit), number=10)
-print("Execution time for test_circuit: ", execution_time / 10, "seconds")
+test_circuit = circuit.createCircuit(data_dir, [2, 3, 3, 4, 5], 10007)
+execution_time = timeit.timeit(lambda: execute(test_circuit), number=1)
+print("Execution time for test_circuit: ", execution_time / 1, "seconds")

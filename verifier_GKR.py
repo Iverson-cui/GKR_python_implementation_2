@@ -75,10 +75,12 @@ class Verifier(Interactor):
         """
         p = self.p
         d = self.d
+        k = self.get_k()
+        num_copy = self.get_num_copy()
         copy_k = self.get_circ().get_copy_k()
         assert i >= 0 and i < d, "i is out of bounds"
-        assert (
-            s >= 0 and s <= 2 * copy_k[i + 1]
+        assert s >= 0 and s <= 2 * (
+            k[i + 1] - num_copy[i]
         ), "step must be between 0 and 2*copy_k_{i+1}"
         # we will separate out three cases: s = 0, s = 1, and all other cases.
         if s == 0:
@@ -115,7 +117,7 @@ class Verifier(Interactor):
             new_random_element = np.random.randint(0, p)
             self.append_element_SRE(i, new_random_element)
             return new_random_element
-        elif 1 < s <= 2 * copy_k[i + 1]:
+        elif 1 < s <= 2 * (k[i + 1] - num_copy[i]):
             # The reason to separate out the case s == 1 is that, in each round of sumcheck we need to compare MLE at 0 + MLE at 1 = last round value. Last round value is calculated when used. This means we have to obtain the random element and poly of last round every time. When s=1, there is no last round random element, and poly is just a value.
             r = self.get_sumcheck_random_element(i, s - 1)
             sum_new_poly_at_0_1 = (
@@ -172,6 +174,7 @@ class Verifier(Interactor):
         circ = self.get_circ()
         copy_k = circ.get_copy_k()
         z_tuple = self.get_random_vector(i)
+        num_copy = self.get_num_copy()
         # The verifier needs to get the poly evaluated at 0 and 1 cause they are the claimed value of the prover
         if TIME_INFO:
             poly_start_time = time.time()
@@ -184,22 +187,22 @@ class Verifier(Interactor):
                 )
             )
         SRE_layer_i = self.get_layer_i_sumcheck_random_elements(i)
-        self.process_SRE_for_parallelism(i, z_tuple[: self.get_num_copy()[i + 1]])
+        self.process_SRE_for_parallelism(i, z_tuple[: self.get_num_copy()[i]])
         self.append_line(self.compute_line(i))
         # bstar and cstar is the input of W_i function for verification.
         bstar = tuple(SRE_layer_i[: k[i + 1]])
         cstar = tuple(SRE_layer_i[k[i + 1] :])
         RV_i = tuple(self.get_random_vector(i))
-        last_poly = self.get_specific_polynomial(i, 2 * copy_k[i + 1])
+        last_poly = self.get_specific_polynomial(i, 2 * (k[i + 1] - num_copy[i]))
         # To verify the claim, the verifier needs to know the values of add and mult.
         if TIME_INFO:
             add_mult_start_time = time.time()
         # Although random vector and random element are of length k[i] and 2*k[i+1] respectively, we only need to evaluate add and mult at their gate label.
         add_bstar_cstar = circ.eval_MLE_add(
-            i, RV_i[-copy_k[i] :] + bstar[-copy_k[i + 1] :] + cstar[-copy_k[i + 1] :]
+            i, RV_i[-copy_k[i] :] + bstar[num_copy[i] :] + cstar[num_copy[i] :]
         )
         mult_bstar_cstar = circ.eval_MLE_mult(
-            i, RV_i[-copy_k[i] :] + bstar[-copy_k[i + 1] :] + cstar[-copy_k[i + 1] :]
+            i, RV_i[-copy_k[i] :] + bstar[num_copy[i] :] + cstar[num_copy[i] :]
         )
         if TIME_INFO:
             add_mult_end_time = time.time()

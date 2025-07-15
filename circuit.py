@@ -194,23 +194,23 @@ class Circuit:
         # it needs to be modified. Just as in MatMul, it is
         """
         # add_i = self.get_add_and_mult(i)[0]
-        # k = self.get_k()
+        num_copy = self.get_num_copy()
+        k = self.get_k()
         p = self.get_p()
-        N = self.copy_k[i] + 2 * self.copy_k[i + 1]
+        N = self.copy_k[i] + 2 * (k[i + 1] - num_copy[i])
         assert N == len(
             x
         ), f"length of vector is not correct, expected {N} but got {len(x)}"
         answer = 0
+
         # When calculating MLE of add, we only need to iterate over the layer i gates, not layer i+2*layer i+1 gates. That's because each layer i gate contribute to only one term in the sum, which means tilde add function itself is very sparse.
         for gate in range(2 ** self.copy_k[i]):
             if self.get_type(i, gate) == "add":
 
                 whole_first_input, whole_second_input = self.get_inputs(i, gate)
-                first_input = SU.int_to_bin(whole_first_input, self.k[i + 1])[
-                    self.get_num_copy()[i + 1] :
-                ]
-                second_input = SU.int_to_bin(whole_second_input, self.k[i + 1])[
-                    self.get_num_copy()[i + 1] :
+                first_input = SU.int_to_bin(whole_first_input, k[i + 1])[num_copy[i] :]
+                second_input = SU.int_to_bin(whole_second_input, k[i + 1])[
+                    num_copy[i] :
                 ]
 
                 w = SU.int_to_bin(gate, self.copy_k[i]) + first_input + second_input
@@ -224,9 +224,10 @@ class Circuit:
         """
 
         # mult_i = self.get_add_and_mult(i)[1]
-        # k = self.get_k()
+        k = self.get_k()
+        num_copy = self.get_num_copy()
         p = self.get_p()
-        N = self.copy_k[i] + 2 * self.copy_k[i + 1]
+        N = self.copy_k[i] + 2 * (k[i + 1] - num_copy[i])
         assert N == len(
             x
         ), f"length of vector is not correct, expected {N} but got {len(x)}"
@@ -238,11 +239,9 @@ class Circuit:
             if self.get_type(i, gate) == "mult":
 
                 whole_first_input, whole_second_input = self.get_inputs(i, gate)
-                first_input = SU.int_to_bin(whole_first_input, self.k[i + 1])[
-                    self.get_num_copy()[i + 1] :
-                ]
-                second_input = SU.int_to_bin(whole_second_input, self.k[i + 1])[
-                    self.get_num_copy()[i + 1] :
+                first_input = SU.int_to_bin(whole_first_input, k[i + 1])[num_copy[i] :]
+                second_input = SU.int_to_bin(whole_second_input, k[i + 1])[
+                    num_copy[i] :
                 ]
 
                 w = SU.int_to_bin(gate, self.copy_k[i]) + first_input + second_input
