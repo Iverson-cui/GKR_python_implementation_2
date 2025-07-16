@@ -94,7 +94,13 @@ def execute(C):
                     i, copy_k[i], num_copy, k[i], copy_k[i + 1]
                 )
             )
+
         # TODO: last layer differ in the aspects of total iteration number of variable s. We need to consider the interface for the last layer. Now it only supports add layers.
+        if i == d - 1:
+            for s in range(copy_k[i] + 2 * (k[i + 1] - num_copy[i]) + num_copy[i]):
+                prover_msg = prover_inst.partial_sumcheck_mult_layer(s, r)
+                r = verifier_inst.partial_sumcheck_check(i, s, prover_msg)
+
         for s in range(2 * (k[i + 1] - num_copy[i]) + 1):
             # s spans from 0 to 2*copy_k[i+1].
             # when s=0, the prover just passes the MLE evaluated at the random vector passed by verifier. This is evident from p34 of the book. Prover needs to first send the sum of binary input of f_i.

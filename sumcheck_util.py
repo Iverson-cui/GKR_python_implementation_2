@@ -465,6 +465,8 @@ def reusing_work_chi(z: tuple, num_var: int, p: int):
     This function is part of DP_eval_MLE. It calculates chi function values given z in finite field. num_var is the number of variables, p is the prime number.
 
     This function returns a list of length 2^num_var, each corresponding to a binary assignment of input variables.
+
+    Compared with chi function, which takes in two tuples, one as finite field elements and the other as binary, this function only takes in the finite field elements and returns a list of chi values. So the binary elements in chi is equal to the index of the returning list of this function.
     """
     chi_values = [1]
     for i in range(num_var):
@@ -517,3 +519,23 @@ def finite_field_inverse(z, p):
     inverse = pow(z, p - 2, p)
 
     return inverse
+
+
+def reusing_work_update(c_array: tuple, z_j: int, r_j: int, p: int):
+    """
+    This function is used to update the array given round j random challenge r_j and round j input z_j. This function is based on the "Time Optimal" paper page 21.
+
+    Assume the length of c_array is 2^k, where k is the number of variables in the circuit. The length of updated_array returned is 2^{k-1}, which is half of the length of c_array.
+
+    This function can be used to update array, while also to calculate beta values. In that case, we replace r_j with t and get element with the specific index in the array.
+    """
+    z_j_inverse = finite_field_inverse(z_j, p)
+    update_chi = (r_j * z_j + (1 - r_j) * (1 - z_j)) % p
+    updated_array = tuple(
+        c_array[len(c_array) // 2 + i] * update_chi * z_j_inverse % p
+        for i in range(len(c_array) // 2)
+    )
+    assert (
+        len(updated_array) == len(c_array) // 2
+    ), f"updated_array must have length {len(c_array) // 2}, but got {len(updated_array)}"
+    return updated_array

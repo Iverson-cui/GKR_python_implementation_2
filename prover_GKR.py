@@ -25,6 +25,7 @@ class Prover(Interactor):
         Interactor.__init__(self, C)
         # Prover needs to compute the circuit. This is done once initialized.
         self.circ.compute_circuit()
+        self.current_beta_array = []
 
     def output_layer_communication(self):
         """
@@ -421,6 +422,63 @@ class Prover(Interactor):
             poly = SU.cubic_interpolate(poly_values, p)
             return poly
 
+    def reusing_work_beta_initialize(self, layer: int, random_vector: tuple):
+        """
+        This function initializes the beta array in the mult layer. For initialization, one input tuple is finite field elements while the other is composed of binary elements.
+        the array is of length 2^k[i].
+        """
+        k = self.get_k()
+        copy_k = self.get_copy_k()
+        assert (
+            len(random_vector) == k[layer]
+        ), f"random_vector must have {k[layer]} elements, but got {len(random_vector)}"
+        # beta is calculated with the sequence of a_1, a_2, gate first, copy second.
+        self.current_beta_array = SU.reusing_work_chi(
+            (random_vector[-copy_k[layer] :] + random_vector[: -copy_k[layer]]),
+            k[layer],
+            self.get_p(),
+        )
+        assert (
+            len(self.current_beta_array) == 2 ** k[layer]
+        ), f"current_beta_array must have {2**k[layer]} elements, but got {len(self.current_beta_array)}"
+        return self.current_beta_array
+
+    def reusing_work_beta_update(self, step: int, z_j: int, random_challenge: int):
+        """
+        This function updates the beta array given this step random challenge.
+        random vector is retrieved from the "step" index of the random_vectors.
+        """
+        depth = self.get_depth()
+        # k = self.get_k()
+        self.current_beta_array = SU.reusing_work_update(
+            self.current_beta_array,
+            z_j,
+            random_challenge,
+            self.get_p(),
+        )
+        return
+
+    def reusing_work_beta_get(self, z_j: int, t: int):
+        """
+        This function returns the beta value at the step and input.
+        INPUTS:
+        step is the step number we are currently at. t is the value we are looking for. Typically t is 0/1/2/3.
+        OUTPUT:
+        This function returns a value of beta.
+
+        This function is different from reusing_work_beta_update in that it accepts t typically equal to 0/1/2/3, and it doesn't change the array stored in the prover instance.
+        """
+        # k = self.get_k()
+        # depth = self.get_depth()
+        result_tuple = SU.reusing_work_update(
+            self.current_beta_array,
+            z_j,
+            t,
+            self.get_p(),
+        )
+        return result_tuple
+
+    # TODO: initialize and update the array in partial_sumcheck_mult_layer function. When going into sum_fi_mult_layer, we assume the array is already initialized and well prepared.
     def sum_fi_mult_layer(self, layer: int, step: int):
         """
         Based on our verification, the optimized parallelism proposed by us does not apply itself to mult layer. We need to use the original data parallelism to support mult layer.
@@ -435,7 +493,7 @@ class Prover(Interactor):
         assert layer < len(self.get_random_vectors()), "haven't reached this layer yet"
         # the partial sumcheck function address the case of s=0.
         assert (
-            1 <= step <= 2 * (k[layer + 1] - num_copy[layer])
+            1 <= step <= k[layer] + 2 * (k[layer + 1] - num_copy[layer])
         ), "In parallel settings, the step s in sumcheck is out of bounds"
         # check the len and type of RV
         assert isinstance(
@@ -445,16 +503,77 @@ class Prover(Interactor):
             len(self.get_random_vector(layer)) == k[layer]
         ), f"RV must have {k[layer]} elements, but got {len(self.get_random_vector(layer))}"
 
-        # step can range from 0 to k[i]+2*(copy_k[i+1]).
+        # variable step can range from 0 to k[i]+2*(copy_k[i+1]).
         # Iteration of step can be separated into 4 parts, corresponding to gradually determining a_1, b_1, c_1 and a_2.
         # When determining a_1, b_1 and a_2, in every step, we need to do a streaming pass over all of the gate in a copy.
         # When determining a_2, mult is already fixed.
         current_random_elements = self.get_layer_i_sumcheck_random_elements(layer)
         # bc_partial is of length step - 1. It needs to append 0/1/2/3 to the final length step list.
         bc_partial = tuple(current_random_elements[: step - 1])
+        this_layer_random_vector = self.get_random_vector(layer)
+        # this_layer_random_vector is separated into z1, gate label and z2, copy label.
+        z2 = this_layer_random_vector[: num_copy[layer]]
+        z1 = this_layer_random_vector[num_copy[layer] :]
         W_iplus1 = circ.get_W(layer + 1)
-        # First step:
-        ## step 1: prepare materials.
+        poly_values = [0, 0, 0, 0]
+        # @ 1. 1<=s<=copy_k[layer] fixing a_1
+        if step <= copy_k[layer]:
+            assert len(self.current_beta_array) == 2 ** (
+                k[layer] - step + 1
+            ), f"current_beta_array must have {2**(
+                k[layer] - step + 1
+            )} elements, but got {len(self.current_beta_array)}"
+            beta_array_0 = self.reusing_work_beta_get(z1[step - 1], 0)
+            beta_array_1 = self.reusing_work_beta_get(z1[step - 1], 1)
+            beta_array_2 = self.reusing_work_beta_get(z1[step - 1], 2)
+            beta_array_3 = self.reusing_work_beta_get(z1[step - 1], 3)
+            for gate in range(2 ** copy_k[layer]):
+                # gate_inputs, a_gate, b1, c1 are all independent of x.
+                gate_inputs = circ.get_inputs(layer, gate)
+                a_gate = (
+                    SU.int_to_bin(gate, copy_k[layer])
+                    + SU.int_to_bin(gate_inputs[0], k[layer + 1] - num_copy[layer])
+                    + SU.int_to_bin(gate_inputs[1], k[layer + 1] - num_copy[layer])
+                )
+                b1 = a_gate[
+                    copy_k[layer] : copy_k[layer] + k[layer + 1] - num_copy[layer]
+                ]
+                c1 = a_gate[k[layer + 1] - num_copy[layer] + copy_k[layer] :]
+                assert (
+                    len(b1) == len(c1) and len(b1) == k[layer + 1] - num_copy[layer]
+                ), "b1 and c1 must have the same length, and b1 must have length copy_k[layer+1]-num_copy[layer]"
+                # mult_chi is the tilde mult value in this step.
+                mult_chi = [0] * 4
+                for x in range(4):
+                    a1 = (
+                        (x,)
+                        if copy_k[layer] == 1
+                        else bc_partial + (x,) + a_gate[step : copy_k[layer]]
+                    )
+                    # When s==1, mult_chi is left with only the a1 part, while the rest evaluates to 1.
+                    mult_chi[x] = SU.chi(a1, a_gate[: copy_k[layer]], copy_k[layer], p)
+                assert len(mult_chi) == 4, "mult_chi must have length 4"
+                for copy in range(2 ** num_copy[layer]):
+                    a2 = SU.int_to_bin(copy, num_copy[layer])
+                    final_beta = [
+                        beta_array_0[copy],
+                        beta_array_1[copy],
+                        beta_array_2[copy],
+                        beta_array_3[copy],
+                    ]
+                    W_iplus1_b = W_iplus1[(a2 + b1)]
+                    W_iplus1_c = W_iplus1[(a2 + c1)]
+                    for x in range(4):
+                        poly_values[x] = (
+                            poly_values[x]
+                            + final_beta[x] * mult_chi[x] * W_iplus1_b * W_iplus1_c
+                        ) % p
+        # @ 2. copy_k[layer] < s <= k[layer+1]-num_copy[layer], fixing b_1
+        else:
+            pass
+
+        poly = SU.cubic_interpolate(poly_values, p)
+        return poly
 
     def partial_sumcheck(self, i: int, s: int, random_element: int):
         """
@@ -514,6 +633,25 @@ class Prover(Interactor):
             return poly
 
     # NOTE: we're appending the last random element, to fill out the sumcheck random elements. Write in specs!
+
+    # TODO: beta array initialize and update logic.
+    def partial_sumcheck_mult_layer(self, step: int, random_element: int):
+        """
+        This function is specifically used in the last mult layer.
+        """
+        d = self.get_depth()
+        k = self.get_copy_k()
+        num_copy = self.get_num_copy()
+        if step == 0:
+            new_evaluation = self.get_evaluation_of_RV(d - 1)
+            return [new_evaluation, 0, 0]
+        if step == 1:
+            self.current_beta_array = self.reusing_work_beta_initialize(
+                d - 1, self.get_random_vector(d - 1)
+            )
+            poly = self.sum_fi_mult_layer(d - 1, step)
+            self.append_sumcheck_polynomial(d - 1, poly)
+            return poly
 
     def send_Wi_on_line(self, i: int, random_element: int):
         """
