@@ -95,11 +95,9 @@ def execute(C):
                 )
             )
 
-        # TODO: last layer differ in the aspects of total iteration number of variable s. We need to consider the interface for the last layer. Now it only supports add layers.
         if i == d - 1:
             for s in range(copy_k[i] + 2 * (k[i + 1] - num_copy[i]) + num_copy[i]):
                 prover_msg = prover_inst.partial_sumcheck_mult_layer(s, r)
-                # TODO: Do we need a new partial sumcheck check function?
                 r = verifier_inst.partial_sumcheck_check_mult_layer(i, s, prover_msg)
 
         for s in range(2 * (k[i + 1] - num_copy[i]) + 1):
@@ -107,7 +105,6 @@ def execute(C):
             # when s=0, the prover just passes the MLE evaluated at the random vector passed by verifier. This is evident from p34 of the book. Prover needs to first send the sum of binary input of f_i.
             # i means layer number, s means step number, r means random element.
             # when s=1, fixing the first variable, there is no random element. This coincides with what the partial_sumcheck_check returns at s=0, namely, 0.
-            # TODO: partial sumcheck only returns a poly. function sum_fi does the same thing. We can set another sum_fi-like function and another partial_sumcheck and partial_sumcheck_check function.
             prover_msg = prover_inst.partial_sumcheck(i, s, r)
             if DEBUG_INFO:
                 string_of_prover_msg = "+".join(

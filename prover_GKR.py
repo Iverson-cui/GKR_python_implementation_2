@@ -568,7 +568,7 @@ class Prover(Interactor):
                             + final_beta[x] * mult_chi[x] * W_iplus1_b * W_iplus1_c
                         ) % p
         # @ 2. copy_k[layer] < s <= k[layer+1]-num_copy[layer], fixing b_1
-        elif copy_k[layer] < step <= k[layer + 1] - num_copy[layer]:
+        elif copy_k[layer] < step <= copy_k[layer] + k[layer + 1] - num_copy[layer]:
             assert len(self.current_beta_array) == 2 ** (
                 num_copy[layer]
             ), f"current_beta_array must have {2**(
@@ -715,11 +715,16 @@ class Prover(Interactor):
             return poly
         # step == 2 means a_1 is fixed(we assume a_1 is 1 bit). for now the beta keeps the same until a_2 round.
         if step == 2:
-            self.append_element_SRE(d - 1, random_element)
             # update beta array
             self.reusing_work_beta_update(
-                self.get_random_vector(d - 1)[num_copy[d - 1]], random_element
+                self.get_random_vector(d - 1)[-1], random_element
             )
+            self.append_element_SRE(d - 1, random_element)
+            poly = self.sum_fi_mult_layer(d - 1, step)
+            self.append_sumcheck_polynomial(d - 1, poly)
+            return poly
+        if step == 3:
+            self.append_element_SRE(d - 1, random_element)
             poly = self.sum_fi_mult_layer(d - 1, step)
             self.append_sumcheck_polynomial(d - 1, poly)
             return poly

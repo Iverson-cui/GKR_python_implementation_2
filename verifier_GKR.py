@@ -222,6 +222,9 @@ class Verifier(Interactor):
                 copy_k[layer],
                 copy_k[layer + 1],
             )
+            self.append_sumcheck_polynomial(layer, poly)
+            new_random_element = np.random.randint(0, p)
+            self.append_element_SRE(layer, new_random_element)
             return new_random_element
 
     def reduce_two_to_one(self, i: int, poly: list):
