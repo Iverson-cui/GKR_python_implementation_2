@@ -99,20 +99,10 @@ class Verifier(Interactor):
             return 0
         elif s == 1:
             # first, check compatibility of the 0th and first poly.
-            if i == d - 1:
-                assert (
-                    len(poly) == 4
-                ), "the poly at layer {} step {} should be of length 4, but got {}".format(
-                    i, s, len(poly)
-                )
-                sum_new_poly_at_0_1 = (
-                    SU.cubic_evaluation(poly, 0, p) + SU.cubic_evaluation(poly, 1, p)
-                ) % p
-            else:
-                sum_new_poly_at_0_1 = (
-                    SU.quadratic_evaluation(poly, 0, p)
-                    + SU.quadratic_evaluation(poly, 1, p)
-                ) % p
+            sum_new_poly_at_0_1 = (
+                SU.quadratic_evaluation(poly, 0, p)
+                + SU.quadratic_evaluation(poly, 1, p)
+            ) % p
             # In this case, old_value is just the evaluation of a constant polynomial
             # quadratic or cubic, both are fine.
             old_value = SU.quadratic_evaluation(
@@ -132,26 +122,14 @@ class Verifier(Interactor):
         elif 1 < s <= 2 * (k[i + 1] - num_copy[i]):
             # The reason to separate out the case s == 1 is that, in each round of sumcheck we need to compare MLE at 0 + MLE at 1 = last round value. Last round value is calculated when used. This means we have to obtain the random element and poly of last round every time. When s=1, there is no last round random element, and poly is just a value.
             r = self.get_sumcheck_random_element(i, s - 1)
-            if i == d - 1:
-                assert (
-                    len(poly) == 4
-                ), "the poly at layer {} step {} should be of length 4, but got {}".format(
-                    i, s, len(poly)
-                )
-                sum_new_poly_at_0_1 = (
-                    SU.cubic_evaluation(poly, 0, p) + SU.cubic_evaluation(poly, 1, p)
-                ) % p
-                old_value = SU.cubic_evaluation(
-                    self.get_specific_polynomial(i, s - 1), r, p
-                )
-            else:
-                sum_new_poly_at_0_1 = (
-                    SU.quadratic_evaluation(poly, 0, p)
-                    + SU.quadratic_evaluation(poly, 1, p)
-                ) % p
-                old_value = SU.quadratic_evaluation(
-                    self.get_specific_polynomial(i, s - 1), r, p
-                )
+
+            sum_new_poly_at_0_1 = (
+                SU.quadratic_evaluation(poly, 0, p)
+                + SU.quadratic_evaluation(poly, 1, p)
+            ) % p
+            old_value = SU.quadratic_evaluation(
+                self.get_specific_polynomial(i, s - 1), r, p
+            )
             assert (
                 sum_new_poly_at_0_1 == old_value % p
             ), "the check failed at layer {} step {}, {} is not equal to {}. copy_k[i]={},copy_k[i+1]={}".format(
@@ -174,6 +152,76 @@ class Verifier(Interactor):
                     i, len(layer_i_random_elements), 2 * (k[i + 1] - num_copy[i])
                 )
 
+            return new_random_element
+
+    def partial_sumcheck_check_mult_layer(self, layer: int, step: int, poly: int):
+        """
+        This function is used to specifically check the last layer of the circuit.
+        """
+        p = self.p
+        d = self.d
+        k = self.get_k()
+        num_copy = self.get_num_copy()
+        copy_k = self.get_circ().get_copy_k()
+        assert (
+            0 <= step <= k[layer] + 2 * (k[layer + 1] - num_copy[layer])
+        ), "step must be between 0 and 2*copy_k_{i+1}"
+
+        if step == 0:
+            assert poly[0] == self.get_claimed_value_at_end_of_layer(
+                layer - 1
+            ), "The claimed value at the end of step {}, {} does not match with what the prover just sent, {}".format(
+                layer - 1, self.get_claimed_value_at_end_of_layer(layer - 1), poly[0]
+            )
+            self.append_sumcheck_polynomial(layer, poly)
+            # if s == 0, don't return anything
+            return 0
+        if step == 1:
+            assert (
+                len(poly) == 4
+            ), "the poly at layer {} step {} should be of length 4, but got {}".format(
+                layer, step, len(poly)
+            )
+            sum_new_poly_at_0_1 = (
+                SU.cubic_evaluation(poly, 0, p) + SU.cubic_evaluation(poly, 1, p)
+            ) % p
+            old_value = SU.quadratic_evaluation(
+                self.get_specific_polynomial(layer, step - 1), 0, p
+            )
+            assert (
+                sum_new_poly_at_0_1 == old_value % p
+            ), "the first check failed, {} is not equal to {}".format(
+                sum_new_poly_at_0_1, old_value
+            )
+            #            print("layer {} step 1 succeeded!".format(i))
+            # Now the verification passes, verifier generate random challenges.
+            self.append_sumcheck_polynomial(layer, poly)
+            new_random_element = np.random.randint(0, p)
+            self.append_element_SRE(layer, new_random_element)
+            return new_random_element
+        if 1 < step < k[layer] + 2 * (k[layer + 1] - num_copy[layer]):
+            r = self.get_sumcheck_random_element(layer, step - 1)
+            assert (
+                len(poly) == 4
+            ), "the poly at layer {} step {} should be of length 4, but got {}".format(
+                layer, step, len(poly)
+            )
+            sum_new_poly_at_0_1 = (
+                SU.cubic_evaluation(poly, 0, p) + SU.cubic_evaluation(poly, 1, p)
+            ) % p
+            old_value = SU.cubic_evaluation(
+                self.get_specific_polynomial(layer, step - 1), r, p
+            )
+            assert (
+                sum_new_poly_at_0_1 == old_value % p
+            ), "the check failed at layer {} step {}, {} is not equal to {}. copy_k[layer]={},copy_k[layer+1]={}".format(
+                layer,
+                step,
+                sum_new_poly_at_0_1,
+                old_value,
+                copy_k[layer],
+                copy_k[layer + 1],
+            )
             return new_random_element
 
     def reduce_two_to_one(self, i: int, poly: list):

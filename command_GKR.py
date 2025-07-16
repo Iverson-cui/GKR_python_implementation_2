@@ -100,7 +100,7 @@ def execute(C):
             for s in range(copy_k[i] + 2 * (k[i + 1] - num_copy[i]) + num_copy[i]):
                 prover_msg = prover_inst.partial_sumcheck_mult_layer(s, r)
                 # TODO: Do we need a new partial sumcheck check function?
-                r = verifier_inst.partial_sumcheck_check(i, s, prover_msg)
+                r = verifier_inst.partial_sumcheck_check_mult_layer(i, s, prover_msg)
 
         for s in range(2 * (k[i + 1] - num_copy[i]) + 1):
             # s spans from 0 to 2*copy_k[i+1].
