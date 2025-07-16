@@ -709,6 +709,77 @@ class Prover(Interactor):
                             * W_iplus1_c
                         ) % p
 
+        # @ 4. step > copy_k[layer]+2*(k[layer+1]-num_copy[layer]), fixing a_2
+        elif step > copy_k[layer] + 2 * (k[layer + 1] - num_copy[layer]):
+            assert len(self.current_beta_array) == 2 ** (
+                num_copy[layer] - (step - 6)
+            ), f"current_beta_array must have {2**(
+                num_copy[layer] - (step - 6)
+            )} elements, but got {len(self.current_beta_array)}"
+            beta_array_0 = self.reusing_work_beta_get(z2[step - 6], 0)
+            beta_array_1 = self.reusing_work_beta_get(z2[step - 6], 1)
+            beta_array_2 = self.reusing_work_beta_get(z2[step - 6], 2)
+            beta_array_3 = self.reusing_work_beta_get(z2[step - 6], 3)
+            a1 = bc_partial[: copy_k[layer]]
+            b1 = bc_partial[
+                copy_k[layer] : copy_k[layer] + k[layer + 1] - num_copy[layer]
+            ]
+            c1 = bc_partial[
+                copy_k[layer]
+                + k[layer + 1]
+                - num_copy[layer] : copy_k[layer]
+                + 2 * (k[layer + 1] - num_copy[layer])
+            ]
+            mult_chi = circ.eval_MLE_mult(layer, a1 + b1 + c1)
+            for x in range(4):
+                # a2_partial is of length s-5 in our case, s-len(a1)-len(b1)-len(c1) in general.
+                a2_partial = bc_partial[
+                    copy_k[layer] + 2 * (k[layer + 1] - num_copy[layer]) :
+                ] + (x,)
+                for copy_partial in range(
+                    2
+                    ** (
+                        num_copy[layer]
+                        - (
+                            step
+                            - (copy_k[layer] + 2 * (k[layer + 1] - num_copy[layer]))
+                        )
+                    )
+                ):
+                    a2 = a2_partial + SU.int_to_bin(
+                        copy_partial,
+                        num_copy[layer]
+                        - (
+                            step
+                            - (copy_k[layer] + 2 * (k[layer + 1] - num_copy[layer]))
+                        ),
+                    )
+                    if x == 0:
+                        beta_value = beta_array_0[copy_partial]
+                    elif x == 1:
+                        beta_value = beta_array_1[copy_partial]
+                    elif x == 2:
+                        beta_value = beta_array_2[copy_partial]
+                    elif x == 3:
+                        beta_value = beta_array_3[copy_partial]
+                    else:
+                        raise ValueError("x must be 0, 1, 2 or 3, but got {}".format(x))
+                    W_iplus1_b = SU.DP_eval_MLE(
+                        W_iplus1,
+                        a2 + b1,
+                        k[layer + 1],
+                        p,
+                    )
+                    W_iplus1_c = SU.DP_eval_MLE(
+                        W_iplus1,
+                        a2 + c1,
+                        k[layer + 1],
+                        p,
+                    )
+                    poly_values[x] = (
+                        poly_values[x] + beta_value * mult_chi * W_iplus1_b * W_iplus1_c
+                    ) % p
+
         poly = SU.cubic_interpolate(poly_values, p)
         return poly
 
@@ -777,7 +848,7 @@ class Prover(Interactor):
         This function is specifically used in the last mult layer.
         """
         d = self.get_depth()
-        k = self.get_copy_k()
+        k = self.get_k()
         num_copy = self.get_num_copy()
         if step == 0:
             new_evaluation = self.get_evaluation_of_RV(d - 1)
@@ -799,11 +870,24 @@ class Prover(Interactor):
             poly = self.sum_fi_mult_layer(d - 1, step)
             self.append_sumcheck_polynomial(d - 1, poly)
             return poly
-        if 3 <= step <= 5:
+        # when step ==6, we are actually fixing a_2, but since we don't need to update the beta array, the code is the same as previous situations.
+        if 3 <= step <= 6:
             self.append_element_SRE(d - 1, random_element)
             poly = self.sum_fi_mult_layer(d - 1, step)
             self.append_sumcheck_polynomial(d - 1, poly)
             return poly
+        elif 7 <= step <= k[d - 1] + 2 * (k[d] - num_copy[d - 1]):
+            self.reusing_work_beta_update(
+                self.get_random_vector(d - 1)[step - 7], random_element
+            )
+            self.append_element_SRE(d - 1, random_element)
+            poly = self.sum_fi_mult_layer(d - 1, step)
+            self.append_sumcheck_polynomial(d - 1, poly)
+            return poly
+        else:
+            assert (
+                False
+            ), f"step must be between 0 and {k[d - 1] + 2 * (k[d - 1 + 1] - num_copy[d - 1 + 1])}, but got {step}"
 
     def send_Wi_on_line(self, i: int, random_element: int):
         """

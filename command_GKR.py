@@ -96,7 +96,7 @@ def execute(C):
             )
 
         if i == d - 1:
-            for s in range(copy_k[i] + 2 * (k[i + 1] - num_copy[i]) + num_copy[i]):
+            for s in range(copy_k[i] + 2 * (k[i + 1] - num_copy[i]) + num_copy[i] + 1):
                 prover_msg = prover_inst.partial_sumcheck_mult_layer(s, r)
                 r = verifier_inst.partial_sumcheck_check_mult_layer(i, s, prover_msg)
 
