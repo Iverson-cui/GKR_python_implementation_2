@@ -265,14 +265,15 @@ class Verifier(Interactor):
                     i, poly_end_time - poly_start_time
                 )
             )
-        SRE_layer_i = self.get_layer_i_sumcheck_random_elements(i)
+
         self.process_SRE_for_parallelism(i, z_tuple[: self.get_num_copy()[i]])
+        SRE_layer_i = self.get_layer_i_sumcheck_random_elements(i)
         self.append_line(self.compute_line(i))
         # bstar and cstar is the input of W_i function for verification.
         bstar = tuple(SRE_layer_i[: k[i + 1]])
         cstar = tuple(SRE_layer_i[k[i + 1] :])
         RV_i = tuple(self.get_random_vector(i))
-        last_poly = self.get_specific_polynomial(i, 2 * (k[i + 1] - num_copy[i]))
+        last_poly = self.get_specific_polynomial(i, -1)
         # To verify the claim, the verifier needs to know the values of add and mult.
         if TIME_INFO:
             add_mult_start_time = time.time()

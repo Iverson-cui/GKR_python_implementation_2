@@ -99,31 +99,31 @@ def execute(C):
             for s in range(copy_k[i] + 2 * (k[i + 1] - num_copy[i]) + num_copy[i] + 1):
                 prover_msg = prover_inst.partial_sumcheck_mult_layer(s, r)
                 r = verifier_inst.partial_sumcheck_check_mult_layer(i, s, prover_msg)
-
-        for s in range(2 * (k[i + 1] - num_copy[i]) + 1):
-            # s spans from 0 to 2*copy_k[i+1].
-            # when s=0, the prover just passes the MLE evaluated at the random vector passed by verifier. This is evident from p34 of the book. Prover needs to first send the sum of binary input of f_i.
-            # i means layer number, s means step number, r means random element.
-            # when s=1, fixing the first variable, there is no random element. This coincides with what the partial_sumcheck_check returns at s=0, namely, 0.
-            prover_msg = prover_inst.partial_sumcheck(i, s, r)
-            if DEBUG_INFO:
-                string_of_prover_msg = "+".join(
-                    ["{}*x^{}".format(prover_msg[l], l) for l in [2, 1, 0]]
-                )
-                print(
-                    "at layer {} step {}, the polynomial the prover sends is {}".format(
-                        i, s, string_of_prover_msg
+        else:
+            for s in range(2 * (k[i + 1] - num_copy[i]) + 1):
+                # s spans from 0 to 2*copy_k[i+1].
+                # when s=0, the prover just passes the MLE evaluated at the random vector passed by verifier. This is evident from p34 of the book. Prover needs to first send the sum of binary input of f_i.
+                # i means layer number, s means step number, r means random element.
+                # when s=1, fixing the first variable, there is no random element. This coincides with what the partial_sumcheck_check returns at s=0, namely, 0.
+                prover_msg = prover_inst.partial_sumcheck(i, s, r)
+                if DEBUG_INFO:
+                    string_of_prover_msg = "+".join(
+                        ["{}*x^{}".format(prover_msg[l], l) for l in [2, 1, 0]]
                     )
-                )
-            # r is the random element used in the next round
-            r = verifier_inst.partial_sumcheck_check(i, s, prover_msg)
-            if DEBUG_INFO:
-                if s != 0:
                     print(
-                        "at layer {} step {}, verifier's randomness is {}".format(
-                            i, s, r
+                        "at layer {} step {}, the polynomial the prover sends is {}".format(
+                            i, s, string_of_prover_msg
                         )
                     )
+                # r is the random element used in the next round
+                r = verifier_inst.partial_sumcheck_check(i, s, prover_msg)
+                if DEBUG_INFO:
+                    if s != 0:
+                        print(
+                            "at layer {} step {}, verifier's randomness is {}".format(
+                                i, s, r
+                            )
+                        )
         # W_iplus1_with_line is what the prover claims \tilde{W}_i restricted to the line is.
         W_iplus1_with_line = prover_inst.send_Wi_on_line(i, r)
         if DEBUG_INFO:

@@ -477,7 +477,6 @@ class Prover(Interactor):
         )
         return result_tuple
 
-    # TODO: initialize and update the array in partial_sumcheck_mult_layer function. When going into sum_fi_mult_layer, we assume the array is already initialized and well prepared.
     def sum_fi_mult_layer(self, layer: int, step: int):
         """
         Based on our verification, the optimized parallelism proposed by us does not apply itself to mult layer. We need to use the original data parallelism to support mult layer.
@@ -842,7 +841,6 @@ class Prover(Interactor):
 
     # NOTE: we're appending the last random element, to fill out the sumcheck random elements. Write in specs!
 
-    # TODO: beta array initialize and update logic.
     def partial_sumcheck_mult_layer(self, step: int, random_element: int):
         """
         This function is specifically used in the last mult layer.
