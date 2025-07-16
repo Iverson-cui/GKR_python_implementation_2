@@ -567,7 +567,7 @@ class Prover(Interactor):
                             poly_values[x]
                             + final_beta[x] * mult_chi[x] * W_iplus1_b * W_iplus1_c
                         ) % p
-        # @ 2. copy_k[layer] < s <= k[layer+1]-num_copy[layer], fixing b_1
+        # @ 2. copy_k[layer] < s <= copy_k[layer]+k[layer+1]-num_copy[layer], fixing b_1
         elif copy_k[layer] < step <= copy_k[layer] + k[layer + 1] - num_copy[layer]:
             assert len(self.current_beta_array) == 2 ** (
                 num_copy[layer]
@@ -625,6 +625,82 @@ class Prover(Interactor):
                             p,
                         )
                         W_iplus1_c = W_iplus1[(a2 + c1)]
+                        poly_values[x] = (
+                            poly_values[x]
+                            + self.current_beta_array[copy]
+                            * mult_chi[x]
+                            * W_iplus1_b
+                            * W_iplus1_c
+                        ) % p
+        # @ 3. copy_k[layer]+k[layer+1]-num_copy[layer]+1 <= step <= copy_k[layer]+2*(k[layer+1]-num_copy[layer]), fixing c_1
+        elif (
+            copy_k[layer] + k[layer + 1] - num_copy[layer] + 1
+            <= step
+            <= copy_k[layer] + 2 * (k[layer + 1] - num_copy[layer])
+        ):
+            # beta_array keeps the same.
+            assert len(self.current_beta_array) == 2 ** (
+                num_copy[layer]
+            ), f"current_beta_array must have {2**(
+                num_copy[layer]
+            )} elements, but got {len(self.current_beta_array)}"
+            # both a1 and b1 are fixed in this process.
+            a1 = bc_partial[: copy_k[layer]]
+            b1 = bc_partial[
+                copy_k[layer] : copy_k[layer] + k[layer + 1] - num_copy[layer]
+            ]
+            # beta_array keeps the same in this process. No need to update it.
+            for gate in range(2 ** copy_k[layer]):
+                # gate_inputs, a_gate, b1, c1 are all independent of x.
+                gate_inputs = circ.get_inputs(layer, gate)
+                a_gate = (
+                    SU.int_to_bin(gate, copy_k[layer])
+                    + SU.int_to_bin(gate_inputs[0], k[layer + 1] - num_copy[layer])
+                    + SU.int_to_bin(gate_inputs[1], k[layer + 1] - num_copy[layer])
+                )
+                mult_chi = [0] * 4
+                for x in range(4):
+                    c1 = (
+                        bc_partial[copy_k[layer] + k[layer + 1] - num_copy[layer] :]
+                        + (x,)
+                        + a_gate[step:]
+                    )
+                    assert (
+                        len(b1) == len(c1) and len(b1) == k[layer + 1] - num_copy[layer]
+                    ), "b1 and c1 must have the same length, and b1 must have length copy_k[layer+1]-num_copy[layer]"
+                    mult_chi[x] = SU.chi(
+                        a1
+                        + b1
+                        + c1[: step - (copy_k[layer] + k[layer + 1] - num_copy[layer])],
+                        a_gate[:step],
+                        step,
+                        p,
+                    )
+                    for copy in range(2 ** num_copy[layer]):
+                        a2 = SU.int_to_bin(copy, num_copy[layer])
+                        # W_iplus1_b = SU.Cormode_eval_W(
+                        #     W_iplus1,
+                        #     a2
+                        #     + b1[: step - copy_k[layer]]
+                        #     + a_gate[
+                        #         step : copy_k[layer] + k[layer + 1] - num_copy[layer]
+                        #     ],
+                        #     num_copy[layer] + step - copy_k[layer],
+                        #     k[layer + 1],
+                        #     p,
+                        # )
+                        W_iplus1_b = SU.DP_eval_MLE(
+                            W_iplus1,
+                            a2 + b1,
+                            k[layer + 1],
+                            p,
+                        )
+                        W_iplus1_c = SU.DP_eval_MLE(
+                            W_iplus1,
+                            a2 + c1,
+                            k[layer + 1],
+                            p,
+                        )
                         poly_values[x] = (
                             poly_values[x]
                             + self.current_beta_array[copy]
@@ -723,7 +799,7 @@ class Prover(Interactor):
             poly = self.sum_fi_mult_layer(d - 1, step)
             self.append_sumcheck_polynomial(d - 1, poly)
             return poly
-        if step == 3:
+        if 3 <= step <= 5:
             self.append_element_SRE(d - 1, random_element)
             poly = self.sum_fi_mult_layer(d - 1, step)
             self.append_sumcheck_polynomial(d - 1, poly)
