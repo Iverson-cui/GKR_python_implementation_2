@@ -443,12 +443,11 @@ class Prover(Interactor):
         ), f"current_beta_array must have {2**k[layer]} elements, but got {len(self.current_beta_array)}"
         return self.current_beta_array
 
-    def reusing_work_beta_update(self, step: int, z_j: int, random_challenge: int):
+    def reusing_work_beta_update(self, z_j: int, random_challenge: int):
         """
         This function updates the beta array given this step random challenge.
-        random vector is retrieved from the "step" index of the random_vectors.
         """
-        depth = self.get_depth()
+        # depth = self.get_depth()
         # k = self.get_k()
         self.current_beta_array = SU.reusing_work_update(
             self.current_beta_array,
@@ -569,8 +568,70 @@ class Prover(Interactor):
                             + final_beta[x] * mult_chi[x] * W_iplus1_b * W_iplus1_c
                         ) % p
         # @ 2. copy_k[layer] < s <= k[layer+1]-num_copy[layer], fixing b_1
-        else:
-            pass
+        elif copy_k[layer] < step <= k[layer + 1] - num_copy[layer]:
+            assert len(self.current_beta_array) == 2 ** (
+                num_copy[layer]
+            ), f"current_beta_array must have {2**(
+                num_copy[layer]
+            )} elements, but got {len(self.current_beta_array)}"
+            a1 = bc_partial[: copy_k[layer]]
+            # beta_array keeps the same in this process. No need to update it.
+            for gate in range(2 ** copy_k[layer]):
+                # gate_inputs, a_gate, b1, c1 are all independent of x.
+                gate_inputs = circ.get_inputs(layer, gate)
+                a_gate = (
+                    SU.int_to_bin(gate, copy_k[layer])
+                    + SU.int_to_bin(gate_inputs[0], k[layer + 1] - num_copy[layer])
+                    + SU.int_to_bin(gate_inputs[1], k[layer + 1] - num_copy[layer])
+                )
+                c1 = a_gate[k[layer + 1] - num_copy[layer] + copy_k[layer] :]
+                mult_chi = [0] * 4
+                for x in range(4):
+                    b1 = (
+                        bc_partial[copy_k[layer] :]
+                        + (x,)
+                        + a_gate[step : copy_k[layer] + k[layer + 1] - num_copy[layer]]
+                    )
+                    assert (
+                        len(b1) == len(c1) and len(b1) == k[layer + 1] - num_copy[layer]
+                    ), "b1 and c1 must have the same length, and b1 must have length copy_k[layer+1]-num_copy[layer]"
+                    mult_chi[x] = SU.chi(
+                        a1 + b1[: step - copy_k[layer]],
+                        a_gate[:step],
+                        step,
+                        p,
+                    )
+                    for copy in range(2 ** num_copy[layer]):
+                        a2 = SU.int_to_bin(copy, num_copy[layer])
+                        # W_iplus1_b = SU.Cormode_eval_W(
+                        #     W_iplus1,
+                        #     a2
+                        #     + b1[: step - copy_k[layer]]
+                        #     + a_gate[
+                        #         step : copy_k[layer] + k[layer + 1] - num_copy[layer]
+                        #     ],
+                        #     num_copy[layer] + step - copy_k[layer],
+                        #     k[layer + 1],
+                        #     p,
+                        # )
+                        W_iplus1_b = SU.DP_eval_MLE(
+                            W_iplus1,
+                            a2
+                            + b1[: step - copy_k[layer]]
+                            + a_gate[
+                                step : copy_k[layer] + k[layer + 1] - num_copy[layer]
+                            ],
+                            k[layer + 1],
+                            p,
+                        )
+                        W_iplus1_c = W_iplus1[(a2 + c1)]
+                        poly_values[x] = (
+                            poly_values[x]
+                            + self.current_beta_array[copy]
+                            * mult_chi[x]
+                            * W_iplus1_b
+                            * W_iplus1_c
+                        ) % p
 
         poly = SU.cubic_interpolate(poly_values, p)
         return poly
@@ -648,6 +709,16 @@ class Prover(Interactor):
         if step == 1:
             self.current_beta_array = self.reusing_work_beta_initialize(
                 d - 1, self.get_random_vector(d - 1)
+            )
+            poly = self.sum_fi_mult_layer(d - 1, step)
+            self.append_sumcheck_polynomial(d - 1, poly)
+            return poly
+        # step == 2 means a_1 is fixed(we assume a_1 is 1 bit). for now the beta keeps the same until a_2 round.
+        if step == 2:
+            self.append_element_SRE(d - 1, random_element)
+            # update beta array
+            self.reusing_work_beta_update(
+                self.get_random_vector(d - 1)[num_copy[d - 1]], random_element
             )
             poly = self.sum_fi_mult_layer(d - 1, step)
             self.append_sumcheck_polynomial(d - 1, poly)
