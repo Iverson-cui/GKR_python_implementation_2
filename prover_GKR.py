@@ -12,7 +12,7 @@ from interactor_GKR import Interactor
 import sumcheck_util as SU
 import circuit
 
-DEBUG_INFO = False
+DEBUG_INFO = True
 
 
 class Prover(Interactor):
@@ -546,17 +546,21 @@ class Prover(Interactor):
                 assert (
                     len(b1) == len(c1) and len(b1) == k[layer + 1] - num_copy[layer]
                 ), "b1 and c1 must have the same length, and b1 must have length copy_k[layer+1]-num_copy[layer]"
-                # mult_chi is the tilde mult value in this step.
-                mult_chi = [0] * degree
+                # wiring_chi is the tilde mult value in this step.
+                wiring_chi = [0] * degree
                 for x in range(degree):
                     a1 = (
                         (x,)
                         if copy_k[layer] == 1
                         else bc_partial + (x,) + a_gate[step : copy_k[layer]]
                     )
-                    # When s==1, mult_chi is left with only the a1 part, while the rest evaluates to 1.
-                    mult_chi[x] = SU.chi(a1, a_gate[: copy_k[layer]], copy_k[layer], p)
-                assert len(mult_chi) == degree, f"mult_chi must have length {degree}"
+                    # When s==1, wiring_chi is left with only the a1 part, while the rest evaluates to 1.
+                    wiring_chi[x] = SU.chi(
+                        a1, a_gate[: copy_k[layer]], copy_k[layer], p
+                    )
+                assert (
+                    len(wiring_chi) == degree
+                ), f"wiring_chi must have length {degree}"
                 for copy in range(2 ** num_copy[layer]):
                     a2 = SU.int_to_bin(copy, num_copy[layer])
                     final_beta = [
@@ -569,10 +573,21 @@ class Prover(Interactor):
                     W_iplus1_b = W_iplus1[(a2 + b1)]
                     W_iplus1_c = W_iplus1[(a2 + c1)]
                     for x in range(degree):
-                        poly_values[x] = (
-                            poly_values[x]
-                            + final_beta[x] * mult_chi[x] * W_iplus1_b * W_iplus1_c
-                        ) % p
+                        if layer == d - 1:
+                            poly_values[x] = (
+                                poly_values[x]
+                                + final_beta[x]
+                                * wiring_chi[x]
+                                * W_iplus1_b
+                                * W_iplus1_c
+                            ) % p
+                        else:
+                            poly_values[x] = (
+                                poly_values[x]
+                                + final_beta[x]
+                                * wiring_chi[x]
+                                * (W_iplus1_b + W_iplus1_c)
+                            ) % p
         # @ 2. copy_k[layer] < s <= copy_k[layer]+k[layer+1]-num_copy[layer], fixing b_1
         elif copy_k[layer] < step <= copy_k[layer] + k[layer + 1] - num_copy[layer]:
             assert len(self.current_beta_array) == 2 ** (
@@ -591,7 +606,7 @@ class Prover(Interactor):
                     + SU.int_to_bin(gate_inputs[1], k[layer + 1] - num_copy[layer])
                 )
                 c1 = a_gate[k[layer + 1] - num_copy[layer] + copy_k[layer] :]
-                mult_chi = [0] * degree
+                wiring_chi = [0] * degree
                 for x in range(degree):
                     b1 = (
                         bc_partial[copy_k[layer] :]
@@ -601,7 +616,7 @@ class Prover(Interactor):
                     assert (
                         len(b1) == len(c1) and len(b1) == k[layer + 1] - num_copy[layer]
                     ), "b1 and c1 must have the same length, and b1 must have length copy_k[layer+1]-num_copy[layer]"
-                    mult_chi[x] = SU.chi(
+                    wiring_chi[x] = SU.chi(
                         a1 + b1[: step - copy_k[layer]],
                         a_gate[:step],
                         step,
@@ -631,13 +646,22 @@ class Prover(Interactor):
                             p,
                         )
                         W_iplus1_c = W_iplus1[(a2 + c1)]
-                        poly_values[x] = (
-                            poly_values[x]
-                            + self.current_beta_array[copy]
-                            * mult_chi[x]
-                            * W_iplus1_b
-                            * W_iplus1_c
-                        ) % p
+
+                        if layer == d - 1:
+                            poly_values[x] = (
+                                poly_values[x]
+                                + self.current_beta_array[copy]
+                                * wiring_chi[x]
+                                * W_iplus1_b
+                                * W_iplus1_c
+                            ) % p
+                        else:
+                            poly_values[x] = (
+                                poly_values[x]
+                                + self.current_beta_array[copy]
+                                * wiring_chi[x]
+                                * (W_iplus1_b + W_iplus1_c)
+                            ) % p
         # @ 3. copy_k[layer]+k[layer+1]-num_copy[layer]+1 <= step <= copy_k[layer]+2*(k[layer+1]-num_copy[layer]), fixing c_1
         elif (
             copy_k[layer] + k[layer + 1] - num_copy[layer] + 1
@@ -664,7 +688,7 @@ class Prover(Interactor):
                     + SU.int_to_bin(gate_inputs[0], k[layer + 1] - num_copy[layer])
                     + SU.int_to_bin(gate_inputs[1], k[layer + 1] - num_copy[layer])
                 )
-                mult_chi = [0] * degree
+                wiring_chi = [0] * degree
                 for x in range(degree):
                     c1 = (
                         bc_partial[copy_k[layer] + k[layer + 1] - num_copy[layer] :]
@@ -674,7 +698,7 @@ class Prover(Interactor):
                     assert (
                         len(b1) == len(c1) and len(b1) == k[layer + 1] - num_copy[layer]
                     ), "b1 and c1 must have the same length, and b1 must have length copy_k[layer+1]-num_copy[layer]"
-                    mult_chi[x] = SU.chi(
+                    wiring_chi[x] = SU.chi(
                         a1
                         + b1
                         + c1[: step - (copy_k[layer] + k[layer + 1] - num_copy[layer])],
@@ -707,13 +731,21 @@ class Prover(Interactor):
                             k[layer + 1],
                             p,
                         )
-                        poly_values[x] = (
-                            poly_values[x]
-                            + self.current_beta_array[copy]
-                            * mult_chi[x]
-                            * W_iplus1_b
-                            * W_iplus1_c
-                        ) % p
+                        if layer == d - 1:
+                            poly_values[x] = (
+                                poly_values[x]
+                                + self.current_beta_array[copy]
+                                * wiring_chi[x]
+                                * W_iplus1_b
+                                * W_iplus1_c
+                            ) % p
+                        else:
+                            poly_values[x] = (
+                                poly_values[x]
+                                + self.current_beta_array[copy]
+                                * wiring_chi[x]
+                                * (W_iplus1_b + W_iplus1_c)
+                            ) % p
 
         # @ 4. step > copy_k[layer]+2*(k[layer+1]-num_copy[layer]), fixing a_2
         elif step > copy_k[layer] + 2 * (k[layer + 1] - num_copy[layer]):
@@ -750,7 +782,10 @@ class Prover(Interactor):
                 - num_copy[layer] : copy_k[layer]
                 + 2 * (k[layer + 1] - num_copy[layer])
             ]
-            mult_chi = circ.eval_MLE_mult(layer, a1 + b1 + c1)
+            if layer == d - 1:
+                wiring_chi = circ.eval_MLE_mult(layer, a1 + b1 + c1)
+            else:
+                wiring_chi = circ.eval_MLE_add(layer, a1 + b1 + c1)
             for x in range(degree):
                 # a2_partial is of length s-5 in our case, s-len(a1)-len(b1)-len(c1) in general.
                 a2_partial = bc_partial[
@@ -796,13 +831,20 @@ class Prover(Interactor):
                         k[layer + 1],
                         p,
                     )
-                    poly_values[x] = (
-                        poly_values[x] + beta_value * mult_chi * W_iplus1_b * W_iplus1_c
-                    ) % p
+                    if layer == d - 1:
+                        poly_values[x] = (
+                            poly_values[x]
+                            + beta_value * wiring_chi * W_iplus1_b * W_iplus1_c
+                        ) % p
+                    else:
+                        poly_values[x] = (
+                            poly_values[x]
+                            + beta_value * wiring_chi * (W_iplus1_b + W_iplus1_c)
+                        ) % p
         if layer == d - 1:
             poly = SU.cubic_interpolate(poly_values, p)
         else:
-            poly = SU.quadratic_interpolate(poly_values, p)
+            poly = SU.quadratic_interpolate(poly_values[:3], p)
         return poly
 
     def partial_sumcheck(self, i: int, s: int, random_element: int):
@@ -941,22 +983,21 @@ class Prover(Interactor):
         when the verifier sends a random element, only in the next call of partial sumcheck does the
         prover add it to its internal state. But since it's the end there is no next call.
         """
-        # z_tuple is the z1 and z2.
-        z_tuple = self.get_random_vector(i)
+        # z_tuple is originally the z1 and z2. But in parallel settings we don't want z1 and z2. We want a1 and a2, namely sumcheck random elements.
+        # z_tuple = self.get_random_vector(i)
+
         p = self.get_p()
         k = self.get_k()
         # copy_k = self.get_circ().get_copy_k()
         num_copy = self.get_num_copy()
-
-        # After appending, there are only 2*copy_k[i+1] elements in the SRE.
         self.append_element_SRE(i, random_element)
+        a2_last_layer = self.get_layer_i_sumcheck_random_elements(i)[-num_copy[i] :]
+        # After appending, there are only 2*copy_k[i+1] elements in the SRE.
+
         # We need to expand it to 2*k[i+1]
-        if not i == self.get_depth() - 1:
-            self.process_SRE_for_parallelism(i, z_tuple[: num_copy[i]])
-        else:
-            self.process_SRE_for_parallelism(
-                i, tuple(self.get_sumcheck_random_elements()[-1][-num_copy[i] :])
-            )
+
+        self.process_SRE_for_parallelism(i, tuple(a2_last_layer))
+
         # line is a function taking input an integer.
         line = self.compute_line(i)
         self.append_line(line)

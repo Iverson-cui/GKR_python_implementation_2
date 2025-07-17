@@ -18,8 +18,8 @@ import circuit
 import time
 from interactor_GKR import Interactor
 
-DEBUG_INFO = False
-TIME_INFO = True
+DEBUG_INFO = True
+TIME_INFO = False
 
 
 class Verifier(Interactor):
@@ -169,11 +169,14 @@ class Verifier(Interactor):
         ), "step must be between 0 and 2*copy_k_{i+1}"
 
         if step == 0:
-            assert poly[0] == self.get_claimed_value_at_end_of_layer(
-                layer - 1
-            ), "The claimed value at the end of step {}, {} does not match with what the prover just sent, {}".format(
-                layer - 1, self.get_claimed_value_at_end_of_layer(layer - 1), poly[0]
-            )
+            if layer >= 1:
+                assert poly[0] == self.get_claimed_value_at_end_of_layer(
+                    layer - 1
+                ), "The claimed value at the end of step {}, {} does not match with what the prover just sent, {}".format(
+                    layer - 1,
+                    self.get_claimed_value_at_end_of_layer(layer - 1),
+                    poly[0],
+                )
             self.append_sumcheck_polynomial(layer, poly)
             # if s == 0, don't return anything
             return 0
@@ -183,7 +186,7 @@ class Verifier(Interactor):
             ), "the poly at layer {} step {} should be of length {}, but got {}".format(
                 layer, step, degree, len(poly)
             )
-            if d == layer - 1:
+            if layer == d - 1:
                 sum_new_poly_at_0_1 = (
                     SU.cubic_evaluation(poly, 0, p) + SU.cubic_evaluation(poly, 1, p)
                 ) % p
@@ -213,7 +216,7 @@ class Verifier(Interactor):
             ), "the poly at layer {} step {} should be of length {}, but got {}".format(
                 layer, step, degree, len(poly)
             )
-            if d == layer - 1:
+            if layer == d - 1:
                 sum_new_poly_at_0_1 = (
                     SU.cubic_evaluation(poly, 0, p) + SU.cubic_evaluation(poly, 1, p)
                 ) % p
@@ -282,12 +285,10 @@ class Verifier(Interactor):
                     i, poly_end_time - poly_start_time
                 )
             )
+        # Although called last_layer, for the sake of convenience, we don't change its name.
         a1_last_layer = self.get_layer_i_sumcheck_random_elements(i)[0]
         a2_last_layer = self.get_layer_i_sumcheck_random_elements(i)[-num_copy[i] :]
-        if not i == d - 1:
-            self.process_SRE_for_parallelism(i, z_tuple[: self.get_num_copy()[i]])
-        else:
-            self.process_SRE_for_parallelism(i, tuple(a2_last_layer))
+        self.process_SRE_for_parallelism(i, tuple(a2_last_layer))
         SRE_layer_i = self.get_layer_i_sumcheck_random_elements(i)
         self.append_line(self.compute_line(i))
         # bstar and cstar is the input of W_i function for verification.
@@ -300,7 +301,7 @@ class Verifier(Interactor):
             add_mult_start_time = time.time()
         # Although random vector and random element are of length k[i] and 2*k[i+1] respectively, we only need to evaluate add and mult at their gate label.
         add_bstar_cstar = circ.eval_MLE_add(
-            i, RV_i[-copy_k[i] :] + bstar[num_copy[i] :] + cstar[num_copy[i] :]
+            i, (a1_last_layer,) + bstar[num_copy[i] :] + cstar[num_copy[i] :]
         )
         mult_bstar_cstar = circ.eval_MLE_mult(
             i, (a1_last_layer,) + bstar[num_copy[i] :] + cstar[num_copy[i] :]
@@ -315,8 +316,12 @@ class Verifier(Interactor):
         # compute what the prover claims f_i(SRE_layer_i) is based on
         # what the prover claims W_{i+1}(bstar) and W_{i+1}(cstar) are.
         # (this is via the polynomial that the prover sends!!)
-        if not i == self.circ.get_depth() - 1:
-            current_claimed_value_of_fi = (add_bstar_cstar * (vals[0] + vals[1])) % p
+        if not i == d - 1:
+            current_claimed_value_of_fi = (
+                SU.chi(RV_i, tuple(a2_last_layer) + (a1_last_layer,), k[i], p)
+                * (add_bstar_cstar * (vals[0] + vals[1]))
+                % p
+            )
         else:
             current_claimed_value_of_fi = (
                 SU.chi(RV_i, tuple(a2_last_layer) + (a1_last_layer,), k[i], p)
@@ -326,13 +331,13 @@ class Verifier(Interactor):
         # The verifier needs to get the old claimed value to compare it with the new one.
         if TIME_INFO:
             old_claimed_value_start_time = time.time()
-        if i == self.get_circ().get_depth() - 1:
+        if i == d - 1:
             old_claimed_value_of_fi = SU.cubic_evaluation(
                 last_poly, a2_last_layer[-1], p
             )
         else:
             old_claimed_value_of_fi = SU.quadratic_evaluation(
-                last_poly, SRE_layer_i[-1], p
+                last_poly, a2_last_layer[-1], p
             )
         if TIME_INFO:
             old_claimed_value_end_time = time.time()

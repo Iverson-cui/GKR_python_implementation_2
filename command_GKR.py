@@ -30,8 +30,8 @@ import circuit
 import prover_GKR as P_GKR
 import verifier_GKR as V_GKR
 
-DEBUG_INFO = False
-TIME_INFO = True
+DEBUG_INFO = True
+TIME_INFO = False
 
 
 def execute(C):
@@ -122,8 +122,6 @@ def execute(C):
                             i, s, r
                         )
                     )
-
-        # TODO: After this line the logic is not done. We modify the code above this line first.
         # W_iplus1_with_line is what the prover claims \tilde{W}_i restricted to the line is.
         W_iplus1_with_line = prover_inst.send_Wi_on_line(i, r)
         if DEBUG_INFO:

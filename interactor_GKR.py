@@ -170,14 +170,12 @@ class Interactor:
             and len(z_tuple) == self.get_num_copy()[num_layer]
         ), f"z_tuple must be a tuple of length {self.get_num_copy()[num_layer]}, but got {type(z_tuple)} with length {len(z_tuple) if hasattr(z_tuple, '__len__') else 'N/A'}. now z_tuple={z_tuple} and len(z_tuple)={len(z_tuple)} while num_copy[layer]={self.get_num_copy()[num_layer]}"
 
-        if num_layer == self.get_depth() - 1:
-            # get b1 and c1 out of the sumcheck_random_elements[num_layer]
-            self.sumcheck_random_elements[num_layer] = self.sumcheck_random_elements[
-                num_layer
-            ][
-                copy_k[num_layer] : copy_k[num_layer]
-                + 2 * (k[num_layer + 1] - num_copy[num_layer])
-            ]
+        self.sumcheck_random_elements[num_layer] = self.sumcheck_random_elements[
+            num_layer
+        ][
+            copy_k[num_layer] : copy_k[num_layer]
+            + 2 * (k[num_layer + 1] - num_copy[num_layer])
+        ]
 
         # In parallelism settings, the random element needs to be further processed.
         length = len(self.sumcheck_random_elements[num_layer])
