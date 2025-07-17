@@ -95,24 +95,17 @@ def execute(C):
                     i, copy_k[i], num_copy, k[i], copy_k[i + 1]
                 )
             )
-        # for encapsutation version.
-        if not i == d - 1:
-            for s in range(k[i + 1] - num_copy[i] + 1):
-                prover_msg = prover_inst.partial_sumcheck(i, s, r)
-                r = verifier_inst.partial_sumcheck_check(i, s, prover_msg)
-            # temp_tuple[0] is the value, while temp_tuple[1] is the random element.
-            temp_tuple = prover_inst.encapsulate_verification(i, r)
-            verifier_inst.encapsulate_verification_check(temp_tuple[1], temp_tuple[0])
-            prover_inst.receive_random_vector(i + 1, temp_tuple[1])
-
-        # for normal version, last layer in the circuit
-        else:
-            for s in range(2 * copy_k[i + 1] + 1):
-                # s spans from 0 to 2*copy_k[i+1].
-                # when s=0, the prover just passes the MLE evaluated at the random vector passed by verifier. This is evident from p34 of the book. Prover needs to first send the sum of binary input of f_i.
-                # i means layer number, s means step number, r means random element.
-                # when s=1, fixing the first variable, there is no random element. This coincides with what the partial_sumcheck_check returns at s=0, namely, 0.
-                prover_msg = prover_inst.partial_sumcheck_mult_layer(i, s, r)
+        if i == d - 1:
+            for s in range(copy_k[i] + 2 * (k[i + 1] - num_copy[i]) + num_copy[i] + 1):
+                if s == copy_k[i] + 2 * (k[i + 1] - num_copy[i]):
+                    if TIME_INFO:
+                        last_layer_a1_b1_c1_end_time = time.time()
+                        print(
+                            "\033[32mTime for layer {} a1 to c1 gate loop: {}\033[0m".format(
+                                i, last_layer_a1_b1_c1_end_time - gate_loop_start_time
+                            )
+                        )
+                prover_msg = prover_inst.partial_sumcheck_mult_layer(s, r)
                 if DEBUG_INFO:
                     string_of_prover_msg = "+".join(
                         ["{}*x^{}".format(prover_msg[l], l) for l in [2, 1, 0]]
@@ -122,7 +115,6 @@ def execute(C):
                             i, s, string_of_prover_msg
                         )
                     )
-                # r is the random element used in the next round
                 r = verifier_inst.partial_sumcheck_check_mult_layer(i, s, prover_msg)
                 if DEBUG_INFO:
                     if s != 0:
@@ -142,7 +134,7 @@ def execute(C):
             if TIME_INFO:
                 gate_loop_end_time = time.time()
                 print(
-                    "Time for layer {} gate loop: {}".format(
+                    "\033[32mTime for layer {} gate loop: {}\033[0m".format(
                         i, gate_loop_end_time - gate_loop_start_time
                     )
                 )
@@ -168,10 +160,20 @@ def execute(C):
 
             if TIME_INFO:
                 loop_end_time = time.time()
-
                 print(
-                    "Time for layer {}: {}".format(i, loop_end_time - loop_start_time)
+                    "\033[34mTime for layer {}: {}\033[0m".format(
+                        i, loop_end_time - loop_start_time
+                    )
                 )
+        # for encapsutation version.
+        else:
+            for s in range(k[i + 1] - num_copy[i] + 1):
+                prover_msg = prover_inst.partial_sumcheck(i, s, r)
+                r = verifier_inst.partial_sumcheck_check(i, s, prover_msg)
+            # temp_tuple[0] is the value, while temp_tuple[1] is the random element.
+            temp_tuple = prover_inst.encapsulate_verification(i, r)
+            verifier_inst.encapsulate_verification_check(temp_tuple[1], temp_tuple[0])
+            prover_inst.receive_random_vector(i + 1, temp_tuple[1])
     if TIME_INFO:
         final_start_time = time.time()
     verifier_inst.final_verifier_check()
@@ -185,6 +187,6 @@ def execute(C):
 
 # C = [circuit.createCircuit("circuitdata-{}.csv".format(i), 10007) for i in range(1, 5)]
 # Deep_C = circuit.createCircuit("deep_circuit-1.csv", 10007)
-test_circuit = circuit.createCircuit(data_dir, [3, 4, 8, 6], 10007)
+test_circuit = circuit.createCircuit(data_dir, [3, 4, 8, 9], 10007)
 execution_time = timeit.timeit(lambda: execute(test_circuit), number=5)
 print("Execution time for test_circuit: ", execution_time / 5, "seconds")

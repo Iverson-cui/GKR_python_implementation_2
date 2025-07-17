@@ -125,7 +125,7 @@ class Interactor:
 
     def get_specific_polynomial(self, i, s):
         assert i >= 0 and i <= self.get_depth(), "i is out of bounds"
-        assert s >= 0 and s < len(
+        assert s < len(
             self.get_polynomials()[i]
         ), "s is out of bounds, should be less than {}, but now is {}".format(
             len(self.get_polynomials()[i]), s
@@ -160,10 +160,22 @@ class Interactor:
         """
         In parallel settings, the sumcheck random elements are of size 2*copy_k[num_layer+1] because there are 2*k[num_layer+1] random elements sent by the verifier. But for further processing, we need to make it 2*k[num_layer+1].
         """
+        copy_k = self.get_copy_k()
+        num_copy = self.get_num_copy()
+        k = self.get_k()
         assert (
-            isinstance(z_tuple, tuple)
-            and len(z_tuple) == self.get_num_copy()[num_layer + 1]
-        ), f"z_tuple must be a tuple of length {self.get_num_copy()[num_layer + 1]}, but got {type(z_tuple)} with length {len(z_tuple) if hasattr(z_tuple, '__len__') else 'N/A'}"
+            isinstance(z_tuple, tuple) and len(z_tuple) == num_copy[num_layer]
+        ), f"z_tuple must be a tuple of length {num_copy[num_layer + 1]}, but got {type(z_tuple)} with length {len(z_tuple) if hasattr(z_tuple, '__len__') else 'N/A'}"
+
+        if num_layer == self.get_depth() - 1:
+            # get b1 and c1 out of the sumcheck_random_elements[num_layer]
+            self.sumcheck_random_elements[num_layer] = self.sumcheck_random_elements[
+                num_layer
+            ][
+                copy_k[num_layer] : copy_k[num_layer]
+                + 2 * (k[num_layer + 1] - num_copy[num_layer])
+            ]
+
         # In parallelism settings, the random element needs to be further processed.
         length = len(self.sumcheck_random_elements[num_layer])
 

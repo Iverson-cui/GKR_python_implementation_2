@@ -236,27 +236,43 @@ class Circuit:
         # mult_i = self.get_add_and_mult(i)[1]
         # k = self.get_k()
         p = self.get_p()
-        N = self.copy_k[i] + 2 * self.copy_k[i + 1]
+        k = self.get_k()
+        num_copy = self.get_num_copy()
+        N = self.copy_k[i] + 2 * (k[i + 1] - num_copy[i])
         assert N == len(
             x
         ), f"length of vector is not correct, expected {N} but got {len(x)}"
         answer = 0
         if i == self.get_depth() - 1:
             # self.get_copy_k()[i + 1] = self.get_k()[i + 1]
-            N = self.get_copy_k()[i] + 2 * self.get_k()[i + 1]
-        for gate in range(2 ** self.copy_k[i]):
-            if self.get_type(i, gate) == "mult":
-                first_input, second_input = self.get_inputs(i, gate)
+            for gate in range(2 ** self.copy_k[i]):
+                if self.get_type(i, gate) == "mult":
 
-                w = (
-                    SU.int_to_bin(gate, self.copy_k[i])
-                    + SU.int_to_bin(first_input, self.k[i + 1])
-                    + SU.int_to_bin(second_input, self.k[i + 1])
-                )
+                    whole_first_input, whole_second_input = self.get_inputs(i, gate)
+                    first_input = SU.int_to_bin(whole_first_input, k[i + 1])[
+                        num_copy[i] :
+                    ]
+                    second_input = SU.int_to_bin(whole_second_input, k[i + 1])[
+                        num_copy[i] :
+                    ]
 
-                # now w is of length copy_k[i]+2*copy_k[i+1]
-                # N equals copy_k[i]+2*copy_k[i+1]
-                answer = (answer + SU.chi(w, x, N, p)) % p
+                    w = SU.int_to_bin(gate, self.copy_k[i]) + first_input + second_input
+
+                    answer = (answer + SU.chi(w, x, N, p)) % p
+        else:
+            for gate in range(2 ** self.copy_k[i]):
+                if self.get_type(i, gate) == "mult":
+                    first_input, second_input = self.get_inputs(i, gate)
+
+                    w = (
+                        SU.int_to_bin(gate, self.copy_k[i])
+                        + SU.int_to_bin(first_input, self.k[i + 1])
+                        + SU.int_to_bin(second_input, self.k[i + 1])
+                    )
+
+                    # now w is of length copy_k[i]+2*copy_k[i+1]
+                    # N equals copy_k[i]+2*copy_k[i+1]
+                    answer = (answer + SU.chi(w, x, N, p)) % p
         return answer
 
     def get_W(self, i):
