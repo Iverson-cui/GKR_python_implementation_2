@@ -18,8 +18,8 @@ import circuit
 import time
 from interactor_GKR import Interactor
 
-DEBUG_INFO = True
-TIME_INFO = False
+DEBUG_INFO = False
+TIME_INFO = True
 
 
 class Verifier(Interactor):
