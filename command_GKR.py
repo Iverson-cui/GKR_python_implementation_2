@@ -30,8 +30,8 @@ import circuit
 import prover_GKR as P_GKR
 import verifier_GKR as V_GKR
 
-DEBUG_INFO = True
-TIME_INFO = False
+DEBUG_INFO = False
+TIME_INFO = True
 
 
 def execute(C):
@@ -169,11 +169,43 @@ def execute(C):
         else:
             for s in range(k[i + 1] - num_copy[i] + 1):
                 prover_msg = prover_inst.partial_sumcheck(i, s, r)
+                if DEBUG_INFO:
+                    string_of_prover_msg = "+".join(
+                        ["{}*x^{}".format(prover_msg[l], l) for l in [2, 1, 0]]
+                    )
+                    print(
+                        "at layer {} step {}, the polynomial the prover sends is {}".format(
+                            i, s, string_of_prover_msg
+                        )
+                    )
                 r = verifier_inst.partial_sumcheck_check(i, s, prover_msg)
+                if DEBUG_INFO:
+                    if s != 0:
+                        print(
+                            "at layer {} step {}, verifier's randomness is {}".format(
+                                i, s, r
+                            )
+                        )
             # temp_tuple[0] is the value, while temp_tuple[1] is the random element.
             temp_tuple = prover_inst.encapsulate_verification(i, r)
+
             verifier_inst.encapsulate_verification_check(temp_tuple[1], temp_tuple[0])
+            if TIME_INFO:
+                gate_loop_end_time = time.time()
+                print(
+                    "\033[32mTime for layer {} gate loop: {}\033[0m".format(
+                        i, gate_loop_end_time - gate_loop_start_time
+                    )
+                )
+
             prover_inst.receive_random_vector(i + 1, temp_tuple[1])
+            if TIME_INFO:
+                loop_end_time = time.time()
+                print(
+                    "\033[34mTime for layer {}: {}\033[0m".format(
+                        i, loop_end_time - loop_start_time
+                    )
+                )
     if TIME_INFO:
         final_start_time = time.time()
     verifier_inst.final_verifier_check()
@@ -182,11 +214,20 @@ def execute(C):
         print(
             "Time for final verification: {}".format(final_end_time - final_start_time)
         )
-    print("we win!!!")
+    print("=" * 60)
+    print("🎉 SUCCESS! GKR PROTOCOL EXECUTION COMPLETED! 🎉")
+    print("=" * 60)
+    print("🚀 Circuit computation verified successfully!")
+    print("🔥 All layers processed without errors!")
+    print("=" * 60)
 
 
 # C = [circuit.createCircuit("circuitdata-{}.csv".format(i), 10007) for i in range(1, 5)]
 # Deep_C = circuit.createCircuit("deep_circuit-1.csv", 10007)
 test_circuit = circuit.createCircuit(data_dir, [3, 4, 8, 9], 10007)
 execution_time = timeit.timeit(lambda: execute(test_circuit), number=5)
-print("Execution time for test_circuit: ", execution_time / 5, "seconds")
+print(
+    "\033[33mExecution time for test_circuit: {}\033[0m seconds".format(
+        execution_time / 5
+    )
+)
