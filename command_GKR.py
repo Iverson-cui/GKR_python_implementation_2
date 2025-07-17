@@ -151,7 +151,7 @@ def execute(C):
         if TIME_INFO:
             gate_loop_end_time = time.time()
             print(
-                "Time for layer {} gate loop: {}".format(
+                "\033[32mTime for layer {} gate loop: {}\033[0m".format(
                     i, gate_loop_end_time - gate_loop_start_time
                 )
             )
@@ -177,8 +177,11 @@ def execute(C):
 
         if TIME_INFO:
             loop_end_time = time.time()
-
-            print("Time for layer {}: {}".format(i, loop_end_time - loop_start_time))
+            print(
+                "\033[34mTime for layer {}: {}\033[0m".format(
+                    i, loop_end_time - loop_start_time
+                )
+            )
     if TIME_INFO:
         final_start_time = time.time()
     verifier_inst.final_verifier_check()
@@ -187,11 +190,20 @@ def execute(C):
         print(
             "Time for final verification: {}".format(final_end_time - final_start_time)
         )
-    print("we win!!!")
+    print("=" * 60)
+    print("🎉 SUCCESS! GKR PROTOCOL EXECUTION COMPLETED! 🎉")
+    print("=" * 60)
+    print("🚀 Circuit computation verified successfully!")
+    print("🔥 All layers processed without errors!")
+    print("=" * 60)
 
 
 # C = [circuit.createCircuit("circuitdata-{}.csv".format(i), 10007) for i in range(1, 5)]
 # Deep_C = circuit.createCircuit("deep_circuit-1.csv", 10007)
 test_circuit = circuit.createCircuit(data_dir, [2, 3, 4, 5, 6], 10007)
 execution_time = timeit.timeit(lambda: execute(test_circuit), number=1)
-print("Execution time for test_circuit: ", execution_time / 1, "seconds")
+print(
+    "\033[33mExecution time for test_circuit: {}\033[0m seconds".format(
+        execution_time / 1
+    )
+)
