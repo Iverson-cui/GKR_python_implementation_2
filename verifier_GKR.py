@@ -154,15 +154,16 @@ class Verifier(Interactor):
 
             return new_random_element
 
-    def partial_sumcheck_check_mult_layer(self, layer: int, step: int, poly: int):
+    def partial_sumcheck_check_parallel(self, layer: int, step: int, poly: int):
         """
-        This function is used to specifically check the last layer of the circuit.
+        In naive_parallel branch, This function is used throughout all of the layers in the circuit.
         """
         p = self.p
         d = self.d
         k = self.get_k()
         num_copy = self.get_num_copy()
         copy_k = self.get_circ().get_copy_k()
+        degree = 4 if layer == d - 1 else 3
         assert (
             0 <= step <= k[layer] + 2 * (k[layer + 1] - num_copy[layer])
         ), "step must be between 0 and 2*copy_k_{i+1}"
@@ -178,13 +179,19 @@ class Verifier(Interactor):
             return 0
         if step == 1:
             assert (
-                len(poly) == 4
-            ), "the poly at layer {} step {} should be of length 4, but got {}".format(
-                layer, step, len(poly)
+                len(poly) == degree
+            ), "the poly at layer {} step {} should be of length {}, but got {}".format(
+                layer, step, degree, len(poly)
             )
-            sum_new_poly_at_0_1 = (
-                SU.cubic_evaluation(poly, 0, p) + SU.cubic_evaluation(poly, 1, p)
-            ) % p
+            if d == layer - 1:
+                sum_new_poly_at_0_1 = (
+                    SU.cubic_evaluation(poly, 0, p) + SU.cubic_evaluation(poly, 1, p)
+                ) % p
+            else:
+                sum_new_poly_at_0_1 = (
+                    SU.quadratic_evaluation(poly, 0, p)
+                    + SU.quadratic_evaluation(poly, 1, p)
+                ) % p
             old_value = SU.quadratic_evaluation(
                 self.get_specific_polynomial(layer, step - 1), 0, p
             )
@@ -202,16 +209,25 @@ class Verifier(Interactor):
         if 1 < step <= k[layer] + 2 * (k[layer + 1] - num_copy[layer]):
             r = self.get_sumcheck_random_element(layer, step - 1)
             assert (
-                len(poly) == 4
-            ), "the poly at layer {} step {} should be of length 4, but got {}".format(
-                layer, step, len(poly)
+                len(poly) == degree
+            ), "the poly at layer {} step {} should be of length {}, but got {}".format(
+                layer, step, degree, len(poly)
             )
-            sum_new_poly_at_0_1 = (
-                SU.cubic_evaluation(poly, 0, p) + SU.cubic_evaluation(poly, 1, p)
-            ) % p
-            old_value = SU.cubic_evaluation(
-                self.get_specific_polynomial(layer, step - 1), r, p
-            )
+            if d == layer - 1:
+                sum_new_poly_at_0_1 = (
+                    SU.cubic_evaluation(poly, 0, p) + SU.cubic_evaluation(poly, 1, p)
+                ) % p
+                old_value = SU.cubic_evaluation(
+                    self.get_specific_polynomial(layer, step - 1), r, p
+                )
+            else:
+                sum_new_poly_at_0_1 = (
+                    SU.quadratic_evaluation(poly, 0, p)
+                    + SU.quadratic_evaluation(poly, 1, p)
+                ) % p
+                old_value = SU.quadratic_evaluation(
+                    self.get_specific_polynomial(layer, step - 1), r, p
+                )
             assert (
                 sum_new_poly_at_0_1 == old_value % p
             ), "the check failed at layer {} step {}, {} is not equal to {}. copy_k[layer]={},copy_k[layer+1]={}".format(
