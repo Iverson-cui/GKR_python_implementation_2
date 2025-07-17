@@ -921,7 +921,12 @@ class Prover(Interactor):
         # After appending, there are only 2*copy_k[i+1] elements in the SRE.
         self.append_element_SRE(i, random_element)
         # We need to expand it to 2*k[i+1]
-        self.process_SRE_for_parallelism(i, z_tuple[: num_copy[i]])
+        if not i == self.get_depth() - 1:
+            self.process_SRE_for_parallelism(i, z_tuple[: num_copy[i]])
+        else:
+            self.process_SRE_for_parallelism(
+                i, tuple(self.get_sumcheck_random_elements()[-1][-num_copy[i] :])
+            )
         # line is a function taking input an integer.
         line = self.compute_line(i)
         self.append_line(line)

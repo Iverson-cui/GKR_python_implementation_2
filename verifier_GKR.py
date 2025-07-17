@@ -254,6 +254,7 @@ class Verifier(Interactor):
         copy_k = circ.get_copy_k()
         z_tuple = self.get_random_vector(i)
         num_copy = self.get_num_copy()
+        d = self.get_depth()
         # The verifier needs to get the poly evaluated at 0 and 1 cause they are the claimed value of the prover
         if TIME_INFO:
             poly_start_time = time.time()
@@ -265,14 +266,18 @@ class Verifier(Interactor):
                     i, poly_end_time - poly_start_time
                 )
             )
-
-        self.process_SRE_for_parallelism(i, z_tuple[: self.get_num_copy()[i]])
+        a1_last_layer = self.get_layer_i_sumcheck_random_elements(i)[0]
+        a2_last_layer = self.get_layer_i_sumcheck_random_elements(i)[-num_copy[i] :]
+        if not i == d - 1:
+            self.process_SRE_for_parallelism(i, z_tuple[: self.get_num_copy()[i]])
+        else:
+            self.process_SRE_for_parallelism(i, tuple(a2_last_layer))
         SRE_layer_i = self.get_layer_i_sumcheck_random_elements(i)
         self.append_line(self.compute_line(i))
         # bstar and cstar is the input of W_i function for verification.
         bstar = tuple(SRE_layer_i[: k[i + 1]])
         cstar = tuple(SRE_layer_i[k[i + 1] :])
-        RV_i = tuple(self.get_random_vector(i))
+        RV_i = tuple(z_tuple)
         last_poly = self.get_specific_polynomial(i, -1)
         # To verify the claim, the verifier needs to know the values of add and mult.
         if TIME_INFO:
@@ -282,7 +287,7 @@ class Verifier(Interactor):
             i, RV_i[-copy_k[i] :] + bstar[num_copy[i] :] + cstar[num_copy[i] :]
         )
         mult_bstar_cstar = circ.eval_MLE_mult(
-            i, RV_i[-copy_k[i] :] + bstar[num_copy[i] :] + cstar[num_copy[i] :]
+            i, (a1_last_layer,) + bstar[num_copy[i] :] + cstar[num_copy[i] :]
         )
         if TIME_INFO:
             add_mult_end_time = time.time()
@@ -297,12 +302,18 @@ class Verifier(Interactor):
         if not i == self.circ.get_depth() - 1:
             current_claimed_value_of_fi = (add_bstar_cstar * (vals[0] + vals[1])) % p
         else:
-            current_claimed_value_of_fi = (mult_bstar_cstar * (vals[0] * vals[1])) % p
+            current_claimed_value_of_fi = (
+                SU.chi(RV_i, tuple(a2_last_layer) + (a1_last_layer,), k[i], p)
+                * (mult_bstar_cstar * (vals[0] * vals[1]))
+                % p
+            )
         # The verifier needs to get the old claimed value to compare it with the new one.
         if TIME_INFO:
             old_claimed_value_start_time = time.time()
         if i == self.get_circ().get_depth() - 1:
-            old_claimed_value_of_fi = SU.cubic_evaluation(last_poly, SRE_layer_i[-1], p)
+            old_claimed_value_of_fi = SU.cubic_evaluation(
+                last_poly, a2_last_layer[-1], p
+            )
         else:
             old_claimed_value_of_fi = SU.quadratic_evaluation(
                 last_poly, SRE_layer_i[-1], p
