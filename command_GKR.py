@@ -97,6 +97,14 @@ def execute(C):
 
         if i == d - 1:
             for s in range(copy_k[i] + 2 * (k[i + 1] - num_copy[i]) + num_copy[i] + 1):
+                if s == copy_k[i] + 2 * (k[i + 1] - num_copy[i]):
+                    if TIME_INFO:
+                        last_layer_a1_b1_c1_end_time = time.time()
+                        print(
+                            "\033[32mTime for layer {} a1 to c1 gate loop: {}\033[0m".format(
+                                i, last_layer_a1_b1_c1_end_time - gate_loop_start_time
+                            )
+                        )
                 prover_msg = prover_inst.partial_sumcheck_mult_layer(s, r)
                 if DEBUG_INFO:
                     string_of_prover_msg = "+".join(
