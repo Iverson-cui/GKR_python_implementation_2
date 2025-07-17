@@ -848,8 +848,15 @@ class Prover(Interactor):
         d = self.get_depth()
         k = self.get_k()
         num_copy = self.get_num_copy()
+        RV_i = self.get_random_vector(d - 1)
         if step == 0:
             new_evaluation = self.get_evaluation_of_RV(d - 1)
+            if DEBUG_INFO:
+                print(
+                    "The multi-linear extension of W_{} at {} is {}".format(
+                        d - 1, RV_i, new_evaluation
+                    )
+                )
             return [new_evaluation, 0, 0]
         if step == 1:
             self.current_beta_array = self.reusing_work_beta_initialize(

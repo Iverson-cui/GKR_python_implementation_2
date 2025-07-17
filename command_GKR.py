@@ -98,7 +98,23 @@ def execute(C):
         if i == d - 1:
             for s in range(copy_k[i] + 2 * (k[i + 1] - num_copy[i]) + num_copy[i] + 1):
                 prover_msg = prover_inst.partial_sumcheck_mult_layer(s, r)
+                if DEBUG_INFO:
+                    string_of_prover_msg = "+".join(
+                        ["{}*x^{}".format(prover_msg[l], l) for l in [2, 1, 0]]
+                    )
+                    print(
+                        "at layer {} step {}, the polynomial the prover sends is {}".format(
+                            i, s, string_of_prover_msg
+                        )
+                    )
                 r = verifier_inst.partial_sumcheck_check_mult_layer(i, s, prover_msg)
+                if DEBUG_INFO:
+                    if s != 0:
+                        print(
+                            "at layer {} step {}, verifier's randomness is {}".format(
+                                i, s, r
+                            )
+                        )
         else:
             for s in range(2 * (k[i + 1] - num_copy[i]) + 1):
                 # s spans from 0 to 2*copy_k[i+1].
