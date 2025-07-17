@@ -7,7 +7,6 @@ Created on Sun Jul 24 22:48:48 2022
 """
 
 
-from flask import g
 import numpy as np
 
 # import math

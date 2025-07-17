@@ -8,12 +8,6 @@ Created on Mon Jul 18 21:38:43 2022
 
 import os
 
-# current_dir is the folder which contains the current python file.
-current_dir = os.path.dirname(os.path.abspath(__file__))
-# print("current_dir:", current_dir)
-data_dir = os.path.join(current_dir, "./test_circuit/parallel_test.csv")
-# file_path = os.path.join(data_dir, "events_semantic.json")
-
 
 # import numpy as np
 # import math
@@ -32,6 +26,12 @@ import verifier_GKR as V_GKR
 
 DEBUG_INFO = True
 TIME_INFO = False
+
+# current_dir is the folder which contains the current python file.
+current_dir = os.path.dirname(os.path.abspath(__file__))
+# print("current_dir:", current_dir)
+data_dir = os.path.join(current_dir, "./test_circuit/parallel_test.csv")
+# file_path = os.path.join(data_dir, "events_semantic.json")
 
 
 def execute(C):
