@@ -117,6 +117,63 @@ def quadratic_interpolate(values: list, p: int) -> list:
     return answer
 
 
+def cubic_interpolate(values: list, p: int) -> list:
+    """
+    cubic_interpolate
+    INPUT:  values, p
+            values is a list of four integers
+            p is a prime.
+    OUTPUT:
+            answer (list), which is a list of length 4
+            that represents the coefficients of the unique
+            cubic polynomial q such that:
+
+                q(0)=values[0], q(1)=values[1], q(2)=values[2], q(3)=values[3]
+
+            the elements of answer are in increasing degree order (i.e.,
+            the constant coefficient is the first)
+    Examples:
+    >>> cubic_interpolate([1, 2, 3, 4], 7)
+    [1, 1, 0, 0]
+    >>> cubic_interpolate([0, 1, 8, 27], 97)
+    [0, 0, 0, 1]
+    >>> cubic_interpolate([0, 1, 4, 9], 97)
+    [0, 0, 1, 0]
+    >>> cubic_interpolate([1, 1, 1, 1], 7)
+    [1, 0, 0, 0]
+    >>> cubic_interpolate([0, 0, 0, 0], 7)
+    [0, 0, 0, 0]
+    >>> cubic_interpolate([1, 3, 5, 7], 11)
+    [1, 2, 0, 0]
+
+    """
+    assert len(values) == 4, "the list values does not have 4 elements"
+
+    # Using Lagrange interpolation formula for points (0,v0), (1,v1), (2,v2), (3,v3)
+    # The cubic polynomial is: q(x) = sum(values[i] * L_i(x)) for i = 0,1,2,3
+    # where L_i(x) are the Lagrange basis polynomials
+
+    v0, v1, v2, v3 = values
+
+    # Calculate coefficients directly using the Lagrange interpolation formula
+    # For points at x = 0, 1, 2, 3, we can derive the closed form
+
+    # Constant term (coefficient of x^0)
+    a0 = v0 % p
+
+    # Linear term (coefficient of x^1)
+    a1 = (-11 * v0 + 18 * v1 - 9 * v2 + 2 * v3) * pow(6, -1, p) % p
+
+    # Quadratic term (coefficient of x^2)
+    a2 = (6 * v0 - 15 * v1 + 12 * v2 - 3 * v3) * pow(6, -1, p) % p
+
+    # Cubic term (coefficient of x^3)
+    a3 = (-v0 + 3 * v1 - 3 * v2 + v3) * pow(6, -1, p) % p
+
+    answer = [a0, a1, a2, a3]
+    return answer
+
+
 def quadratic_evaluation(g: list, x: int, p: int) -> int:
     """
     quadratic_evaluation
@@ -127,9 +184,22 @@ def quadratic_evaluation(g: list, x: int, p: int) -> int:
     """
     assert (
         len(g) == 3
-    ), "the list of coefficients of the polynomial does not have\
-                        only 3 entries"
+    ), "the list of coefficients of the polynomial does not have only 3 entries"
     return (g[0] + g[1] * x + g[2] * (x**2)) % p
+
+
+def cubic_evaluation(g: list, x: int, p: int) -> int:
+    """
+    cubic_evaluation
+    INPUT: g (list), x, p
+            where g are the coefficients of a cubic polynomial
+            x is an integer, and p is a prime
+    OUTPUT: g(x) mod p
+    """
+    assert (
+        len(g) == 4
+    ), "the list of coefficients of the polynomial does not have only 4 entries"
+    return (g[0] + g[1] * x + g[2] * (x**2) + g[3] * (x**3)) % p
 
 
 def Lagrange_basis(xcoords: list, n: int, p: int) -> list:
@@ -183,6 +253,8 @@ def polynomial_evaluation(poly, x, p):
     Return the value of the polynomial evaluated at x mod p
 
     Here, poly is a list of coefficients of the polynomial like what the above function returns. x is a single evaluation point.
+
+    This function may perform the same operation as the `cubic_evaluation` or `quadratic_evaluation` functions, but it is more general and can handle polynomials of any degree.
     """
     reverse_poly = poly[::-1]
     answer = 0
@@ -213,6 +285,12 @@ def chi(a: tuple, z: tuple, N: int, p: int):
 
     N here is the input length, i.e., the number of variables in the boolean hypercube.
     """
+    assert (
+        len(a) == N and len(z) == N
+    ), "a and z must both be of length N. Now a is of length {} and z is of length {}, while N={}".format(
+        len(a), len(z), N
+    )
+
     answer = 1
     for i in range(N):
         next_term = a[i] * z[i] + (1 - a[i]) * (1 - z[i]) % p
@@ -341,5 +419,123 @@ def Cormode_eval_W(
         chi_value = chi(label[:step], input_so_far, step, prime)
         # update the corresponding class of the result.
         result[class_index] = (result[class_index] + chi_value * value) % prime
-    # assert len(result) == 2 ** (num_var - step), "result must be of length 2^{k[i+1]-s}"
+    assert len(result) == 2 ** (num_var - step), "result must be of length 2^{k[i+1]-s}"
     return result
+
+
+def list_recombination(list_of_lists: list, num_var: int, p: int) -> list:
+    """
+    ARGS:
+    list_of_lists: a list of lists, each of which is a list of length 2^{num_var}
+    num_var: the number of variables in the list.
+    p: the prime number of the circuit.
+
+    OUTPUT:
+    a list containing the recombination of the input lists.
+
+    This function takes 2^m lists each of length 2^num_var and returns a list. The returning list takes the first element of each list and append them to the new list. Then it takes the second element and so on. So the result is a cycle list of all the lists.
+    In our case, this function is mainly used for tilde{W}_i+1 values.
+    """
+    for i, lst in enumerate(list_of_lists):
+        assert isinstance(
+            lst, list
+        ), f"Element {i} in list_of_lists must be a list, but got {type(lst)}"
+        assert (
+            len(lst) == 2**num_var
+        ), f"Element {i} in list_of_lists must have length 2^{num_var} (={2**num_var}), but got {len(lst)}"
+
+    # If no lists provided, return empty list
+    if not list_of_lists:
+        return []
+
+    # Initialize result list
+    result = []
+
+    # For each position (0 to 2^num_var - 1)
+    for pos in range(2**num_var):
+        # Take the element at position 'pos' from each list
+        for lst in list_of_lists:
+            result.append(lst[pos] % p)  # Apply modulo p for finite field arithmetic
+
+    return result
+
+
+def reusing_work_chi(z: tuple, num_var: int, p: int):
+    """
+    This function is part of DP_eval_MLE. It calculates chi function values given z in finite field. num_var is the number of variables, p is the prime number.
+
+    This function returns a list of length 2^num_var, each corresponding to a binary assignment of input variables.
+
+    Compared with chi function, which takes in two tuples, one as finite field elements and the other as binary, this function only takes in the finite field elements and returns a list of chi values. So the binary elements in chi is equal to the index of the returning list of this function.
+    """
+    chi_values = [1]
+    for i in range(num_var):
+        temp = []
+        for j in range(2**i):
+            temp.append((1 - z[i]) * chi_values[j] % p)
+            temp.append((z[i]) * chi_values[j] % p)
+        chi_values = temp
+
+    assert isinstance(
+        chi_values, list
+    ), f"chi_values must be a list, but got {type(chi_values)}"
+    assert (
+        len(chi_values) == 2**num_var
+    ), f"chi_values must have length 2^{num_var} (={2**num_var}), but got {len(chi_values)}"
+    return chi_values
+
+
+def finite_field_inverse(z, p):
+    """
+    Compute the multiplicative inverse of z in the finite field Z/pZ.
+
+    Args:
+        z: The finite field element (integer)
+        p: The prime number defining the finite field
+
+    Returns:
+        The multiplicative inverse z^(-1) mod p
+
+    Raises:
+        ValueError: If z is 0 or if p is not prime (basic check)
+    """
+    # First, let's validate our inputs
+    if z == 0:
+        raise ValueError("Zero has no multiplicative inverse in any field")
+
+    if p <= 1:
+        raise ValueError("Prime p must be greater than 1")
+
+    # Normalize z to be in the range [0, p-1]
+    z = z % p
+
+    # Check if z and p are coprime (necessary for inverse to exist)
+    # In a prime field, this means z should not be 0 mod p
+    if z == 0:
+        raise ValueError("z is congruent to 0 mod p, so no inverse exists")
+
+    # Use Fermat's Little Theorem: z^(-1) ≡ z^(p-2) (mod p)
+    # Python's pow function can efficiently compute modular exponentiation
+    inverse = pow(z, p - 2, p)
+
+    return inverse
+
+
+def reusing_work_update(c_array: tuple, z_j: int, r_j: int, p: int):
+    """
+    This function is used to update the array given round j random challenge r_j and round j input z_j. This function is based on the "Time Optimal" paper page 21.
+
+    Assume the length of c_array is 2^k, where k is the number of variables in the circuit. The length of updated_array returned is 2^{k-1}, which is half of the length of c_array.
+
+    This function can be used to update array, while also to calculate beta values. In that case, we replace r_j with t and get element with the specific index in the array.
+    """
+    z_j_inverse = finite_field_inverse(z_j, p)
+    update_chi = (r_j * z_j + (1 - r_j) * (1 - z_j)) % p
+    updated_array = tuple(
+        c_array[len(c_array) // 2 + i] * update_chi * z_j_inverse % p
+        for i in range(len(c_array) // 2)
+    )
+    assert (
+        len(updated_array) == len(c_array) // 2
+    ), f"updated_array must have length {len(c_array) // 2}, but got {len(updated_array)}"
+    return updated_array

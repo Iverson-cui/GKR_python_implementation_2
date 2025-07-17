@@ -112,7 +112,7 @@ def execute(C):
                 # when s=0, the prover just passes the MLE evaluated at the random vector passed by verifier. This is evident from p34 of the book. Prover needs to first send the sum of binary input of f_i.
                 # i means layer number, s means step number, r means random element.
                 # when s=1, fixing the first variable, there is no random element. This coincides with what the partial_sumcheck_check returns at s=0, namely, 0.
-                prover_msg = prover_inst.partial_sumcheck_naive(i, s, r)
+                prover_msg = prover_inst.partial_sumcheck_mult_layer(i, s, r)
                 if DEBUG_INFO:
                     string_of_prover_msg = "+".join(
                         ["{}*x^{}".format(prover_msg[l], l) for l in [2, 1, 0]]
@@ -123,7 +123,7 @@ def execute(C):
                         )
                     )
                 # r is the random element used in the next round
-                r = verifier_inst.partial_sumcheck_check_naive(i, s, prover_msg)
+                r = verifier_inst.partial_sumcheck_check_mult_layer(i, s, prover_msg)
                 if DEBUG_INFO:
                     if s != 0:
                         print(

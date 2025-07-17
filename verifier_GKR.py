@@ -151,7 +151,7 @@ class Verifier(Interactor):
 
             return new_random_element
 
-    def partial_sumcheck_check_naive(self, i: int, s: int, poly: list):
+    def partial_sumcheck_check_mult_layer(self, i: int, s: int, poly: list):
         """
         partial_sumcheck_check
         INPUTS: i (integer), s (integer), poly (list)

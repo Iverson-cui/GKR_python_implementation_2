@@ -49,10 +49,10 @@ class Prover(Interactor):
         self.random_vectors.append(tuple(r_i))
         D_i = self.circ.get_W(i)
         # evaluate get_W(i) at the random vector r_i
-        evaluation_at_random_vector = SU.eval_MLE(D_i, r_i, k[i], p)
+        evaluation_at_random_vector = SU.DP_eval_MLE(D_i, r_i, k[i], p)
         self.append_evaluations_RV(evaluation_at_random_vector)
 
-    def sum_fi_naive(self, i: int, s: int):
+    def sum_fi_mult_layer(self, i: int, s: int):
         """
         sum_fi
         INPUTS: i (integer meaning the number of layers), s (step), num_copy (binary representation of the number of copies), RV (random vector sent by verifier, which is the math formula is z, {z_1+z_2}. This vector will be used in evaluation of W_i+1. the length of RV is k[i])
@@ -70,6 +70,10 @@ class Prover(Interactor):
         inputs!!)
 
         This function returns what the prover needs to send to the verifier in every round of the sumcheck protocol.
+
+
+        This naive function is called to process the last layer of the many_fan_in circuit. naive means no encapsulation optimization.
+        TODO: change this naive to parallelism_add_mult branch sum_fi_mult_layer function. Also update the SU in this many_fan_in branch.
         """
 
         circ = self.get_circ()
@@ -588,7 +592,7 @@ class Prover(Interactor):
 
     # NOTE: we're appending the last random element, to fill out the sumcheck random elements. Write in specs!
 
-    def partial_sumcheck_naive(self, i: int, s: int, random_element: int):
+    def partial_sumcheck_mult_layer(self, i: int, s: int, random_element: int):
         """
         partial_sumcheck
         INPUT: i (integer), s (integer), random_element (integer)
@@ -635,13 +639,13 @@ class Prover(Interactor):
 
         # from s==1, Prover has to send the partial sum of the W_i+1 variables. But until now no random element has been sent from verifier to prover, so we don't need to append the random_element to the SRE.
         elif s == 1:
-            poly = self.sum_fi_naive(i, s)
+            poly = self.sum_fi_mult_layer(i, s)
             self.append_sumcheck_polynomial(i, poly)
             return poly
         elif s <= 2 * copy_k[i + 1]:
             # the sumcheck_random_elements[i] keeps updating as we use every round. It initializes to all 0 but every time we only use its non-zero part after update.
             self.append_element_SRE(i, random_element)
-            poly = self.sum_fi_naive(i, s)
+            poly = self.sum_fi_mult_layer(i, s)
             self.append_sumcheck_polynomial(i, poly)
             return poly
 
