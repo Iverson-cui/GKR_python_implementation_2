@@ -266,8 +266,11 @@ class Verifier(Interactor):
                     i, poly_end_time - poly_start_time
                 )
             )
-        a1_last_layer = self.get_layer_i_sumcheck_random_elements(i)[0]
+        # a1_last_layer is only useful for the last layer. When it's not, the value of it doesn't matter.
+        # a1 and a2 is retrieved before the random element is processed. Therefore, the random elements goes like this: a1, b1, c1, a2. So from 0th to copy_k[i]-th is a1, and last num_copy[i] is a2.
+        a1_last_layer = self.get_layer_i_sumcheck_random_elements(i)[: copy_k[i]]
         a2_last_layer = self.get_layer_i_sumcheck_random_elements(i)[-num_copy[i] :]
+        # For add layer, the copy label used to process random elements comes from random vector passed from the above layer. This is different from mult layer naive parallelism, where the copy is from the verifier's random challenges.
         if not i == d - 1:
             self.process_SRE_for_parallelism(i, z_tuple[: self.get_num_copy()[i]])
         else:
@@ -283,6 +286,7 @@ class Verifier(Interactor):
         if TIME_INFO:
             add_mult_start_time = time.time()
         # Although random vector and random element are of length k[i] and 2*k[i+1] respectively, we only need to evaluate add and mult at their gate label.
+        # Hard code. add_bstar_cstar is only useful for all but the last layer, where mult_bstar_cstar is used.
         add_bstar_cstar = circ.eval_MLE_add(
             i, RV_i[-copy_k[i] :] + bstar[num_copy[i] :] + cstar[num_copy[i] :]
         )
@@ -303,7 +307,7 @@ class Verifier(Interactor):
             current_claimed_value_of_fi = (add_bstar_cstar * (vals[0] + vals[1])) % p
         else:
             current_claimed_value_of_fi = (
-                SU.chi(RV_i, tuple(a2_last_layer) + (a1_last_layer,), k[i], p)
+                SU.chi(RV_i, tuple(a2_last_layer) + tuple(a1_last_layer), k[i], p)
                 * (mult_bstar_cstar * (vals[0] * vals[1]))
                 % p
             )

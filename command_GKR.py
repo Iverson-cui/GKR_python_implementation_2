@@ -11,7 +11,7 @@ import os
 # current_dir is the folder which contains the current python file.
 current_dir = os.path.dirname(os.path.abspath(__file__))
 # print("current_dir:", current_dir)
-data_dir = os.path.join(current_dir, "./test_circuit/parallel_test.csv")
+data_dir = os.path.join(current_dir, "./test_circuit/32_3dconv.csv")
 # file_path = os.path.join(data_dir, "events_semantic.json")
 
 
@@ -95,6 +95,7 @@ def execute(C):
                 )
             )
 
+        # For mult layer, we use partial_sumcheck_mult_layer and partial_sumcheck_check_mult_layer.
         if i == d - 1:
             for s in range(copy_k[i] + 2 * (k[i + 1] - num_copy[i]) + num_copy[i] + 1):
                 if s == copy_k[i] + 2 * (k[i + 1] - num_copy[i]):
@@ -123,6 +124,7 @@ def execute(C):
                                 i, s, r
                             )
                         )
+        # Other add layers, we use partial_sumcheck and partial_sumcheck_check.
         else:
             for s in range(2 * (k[i + 1] - num_copy[i]) + 1):
                 # s spans from 0 to 2*copy_k[i+1].
@@ -208,7 +210,7 @@ def execute(C):
 
 # C = [circuit.createCircuit("circuitdata-{}.csv".format(i), 10007) for i in range(1, 5)]
 # Deep_C = circuit.createCircuit("deep_circuit-1.csv", 10007)
-test_circuit = circuit.createCircuit(data_dir, [2, 3, 4, 5, 6], 10007)
+test_circuit = circuit.createCircuit(data_dir, [5, 5, 6, 7, 8, 9, 10, 11], 10007)
 execution_time = timeit.timeit(lambda: execute(test_circuit), number=1)
 print(
     "\033[33mExecution time for test_circuit: {}\033[0m seconds".format(
