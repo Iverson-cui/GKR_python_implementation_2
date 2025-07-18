@@ -104,7 +104,19 @@ def execute(C):
                         i, last_layer_a1_b1_c1_end_time - gate_loop_start_time
                     )
                 )
+            if TIME_INFO:
+                partial_sumcheck_parallel_start_time = time.time()
             prover_msg = prover_inst.partial_sumcheck_parallel(i, s, r)
+            if TIME_INFO:
+                partial_sumcheck_parallel_end_time = time.time()
+                print(
+                    "Time for layer {} step {} partial sumcheck parallel: {}".format(
+                        i,
+                        s,
+                        partial_sumcheck_parallel_end_time
+                        - partial_sumcheck_parallel_start_time,
+                    )
+                )
             if DEBUG_INFO:
                 string_of_prover_msg = "+".join(
                     ["{}*x^{}".format(prover_msg[l], l) for l in [2, 1, 0]]
