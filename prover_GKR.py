@@ -12,7 +12,7 @@ from interactor_GKR import Interactor
 import sumcheck_util as SU
 import circuit
 
-DEBUG_INFO = True
+DEBUG_INFO = False
 
 
 class Prover(Interactor):
@@ -768,6 +768,48 @@ class Prover(Interactor):
             b1 = bc_partial[
                 copy_k[layer] : copy_k[layer] + k[layer + 1] - num_copy[layer]
             ]
+            Cormode_b = SU.Cormode_eval_W(
+                self.partition_swap_dicts[layer + 1],
+                b1,
+                k[layer + 1] - num_copy[layer],
+                k[layer + 1],
+                p,
+            )
+            Cormode_c_0 = SU.Cormode_eval_W(
+                self.partition_swap_dicts[layer + 1],
+                bc_partial[copy_k[layer] + k[layer + 1] - num_copy[layer] : step - 1]
+                + (0,),
+                step - (copy_k[layer] + k[layer + 1] - num_copy[layer]),
+                k[layer + 1],
+                p,
+            )
+            Cormode_c_1 = SU.Cormode_eval_W(
+                self.partition_swap_dicts[layer + 1],
+                bc_partial[copy_k[layer] + k[layer + 1] - num_copy[layer] : step - 1]
+                + (1,),
+                step - (copy_k[layer] + k[layer + 1] - num_copy[layer]),
+                k[layer + 1],
+                p,
+            )
+            Cormode_c_2 = SU.Cormode_eval_W(
+                self.partition_swap_dicts[layer + 1],
+                bc_partial[copy_k[layer] + k[layer + 1] - num_copy[layer] : step - 1]
+                + (2,),
+                step - (copy_k[layer] + k[layer + 1] - num_copy[layer]),
+                k[layer + 1],
+                p,
+            )
+            if layer == d - 1:
+                Cormode_c_3 = SU.Cormode_eval_W(
+                    self.partition_swap_dicts[layer + 1],
+                    bc_partial[
+                        copy_k[layer] + k[layer + 1] - num_copy[layer] : step - 1
+                    ]
+                    + (3,),
+                    step - (copy_k[layer] + k[layer + 1] - num_copy[layer]),
+                    k[layer + 1],
+                    p,
+                )
             # beta_array keeps the same in this process. No need to update it.
             for gate in range(2 ** copy_k[layer]):
                 # gate_inputs, a_gate, b1, c1 are all independent of x.
@@ -808,18 +850,59 @@ class Prover(Interactor):
                         #     k[layer + 1],
                         #     p,
                         # )
-                        W_iplus1_b = SU.DP_eval_MLE(
-                            W_iplus1,
-                            a2 + b1,
-                            k[layer + 1],
-                            p,
-                        )
-                        W_iplus1_c = SU.DP_eval_MLE(
-                            W_iplus1,
-                            a2 + c1,
-                            k[layer + 1],
-                            p,
-                        )
+                        # W_iplus1_b = SU.DP_eval_MLE(
+                        #     W_iplus1,
+                        #     a2 + b1,
+                        #     k[layer + 1],
+                        #     p,
+                        # )
+                        W_iplus1_b = Cormode_b[copy]
+                        if x == 0:
+                            W_iplus1_c = Cormode_c_0[
+                                SU.tuple_to_int(
+                                    a_gate[
+                                        step : copy_k[layer]
+                                        + 2 * (k[layer + 1] - num_copy[layer])
+                                    ]
+                                    + a2
+                                )
+                            ]
+                        if x == 1:
+                            W_iplus1_c = Cormode_c_1[
+                                SU.tuple_to_int(
+                                    a_gate[
+                                        step : copy_k[layer]
+                                        + 2 * (k[layer + 1] - num_copy[layer])
+                                    ]
+                                    + a2
+                                )
+                            ]
+                        if x == 2:
+                            W_iplus1_c = Cormode_c_2[
+                                SU.tuple_to_int(
+                                    a_gate[
+                                        step : copy_k[layer]
+                                        + 2 * (k[layer + 1] - num_copy[layer])
+                                    ]
+                                    + a2
+                                )
+                            ]
+                        if x == 3:
+                            W_iplus1_c = Cormode_c_3[
+                                SU.tuple_to_int(
+                                    a_gate[
+                                        step : copy_k[layer]
+                                        + 2 * (k[layer + 1] - num_copy[layer])
+                                    ]
+                                    + a2
+                                )
+                            ]
+                        # W_iplus1_c = SU.DP_eval_MLE(
+                        #     W_iplus1,
+                        #     a2 + c1,
+                        #     k[layer + 1],
+                        #     p,
+                        # )
                         if layer == d - 1:
                             poly_values[x] = (
                                 poly_values[x]
@@ -871,7 +954,95 @@ class Prover(Interactor):
                 - num_copy[layer] : copy_k[layer]
                 + 2 * (k[layer + 1] - num_copy[layer])
             ]
+            Cormode_b_0 = SU.Cormode_eval_W(
+                self.partition_swap_dicts[layer + 1],
+                b1
+                + bc_partial[
+                    copy_k[layer] + 2 * (k[layer + 1] - num_copy[layer]) : step - 1
+                ]
+                + (0,),
+                step - (copy_k[layer] + (k[layer + 1] - num_copy[layer])),
+                k[layer + 1],
+                p,
+            )
+            Cormode_b_1 = SU.Cormode_eval_W(
+                self.partition_swap_dicts[layer + 1],
+                b1
+                + bc_partial[
+                    copy_k[layer] + 2 * (k[layer + 1] - num_copy[layer]) : step - 1
+                ]
+                + (1,),
+                step - (copy_k[layer] + (k[layer + 1] - num_copy[layer])),
+                k[layer + 1],
+                p,
+            )
+            Cormode_b_2 = SU.Cormode_eval_W(
+                self.partition_swap_dicts[layer + 1],
+                b1
+                + bc_partial[
+                    copy_k[layer] + 2 * (k[layer + 1] - num_copy[layer]) : step - 1
+                ]
+                + (2,),
+                step - (copy_k[layer] + (k[layer + 1] - num_copy[layer])),
+                k[layer + 1],
+                p,
+            )
+            Cormode_c_0 = SU.Cormode_eval_W(
+                self.partition_swap_dicts[layer + 1],
+                c1
+                + bc_partial[
+                    copy_k[layer] + 2 * (k[layer + 1] - num_copy[layer]) : step - 1
+                ]
+                + (0,),
+                step - (copy_k[layer] + (k[layer + 1] - num_copy[layer])),
+                k[layer + 1],
+                p,
+            )
+            Cormode_c_1 = SU.Cormode_eval_W(
+                self.partition_swap_dicts[layer + 1],
+                c1
+                + bc_partial[
+                    copy_k[layer] + 2 * (k[layer + 1] - num_copy[layer]) : step - 1
+                ]
+                + (1,),
+                step - (copy_k[layer] + (k[layer + 1] - num_copy[layer])),
+                k[layer + 1],
+                p,
+            )
+            Cormode_c_2 = SU.Cormode_eval_W(
+                self.partition_swap_dicts[layer + 1],
+                c1
+                + bc_partial[
+                    copy_k[layer] + 2 * (k[layer + 1] - num_copy[layer]) : step - 1
+                ]
+                + (2,),
+                step - (copy_k[layer] + (k[layer + 1] - num_copy[layer])),
+                k[layer + 1],
+                p,
+            )
             if layer == d - 1:
+                Cormode_c_3 = SU.Cormode_eval_W(
+                    self.partition_swap_dicts[layer + 1],
+                    c1
+                    + bc_partial[
+                        copy_k[layer] + 2 * (k[layer + 1] - num_copy[layer]) : step - 1
+                    ]
+                    + (3,),
+                    step - (copy_k[layer] + (k[layer + 1] - num_copy[layer])),
+                    k[layer + 1],
+                    p,
+                )
+                Cormode_b_3 = SU.Cormode_eval_W(
+                    self.partition_swap_dicts[layer + 1],
+                    b1
+                    + bc_partial[
+                        copy_k[layer] + 2 * (k[layer + 1] - num_copy[layer]) : step - 1
+                    ]
+                    + (3,),
+                    step - (copy_k[layer] + (k[layer + 1] - num_copy[layer])),
+                    k[layer + 1],
+                    p,
+                )
                 wiring_chi = circ.eval_MLE_mult(layer, a1 + b1 + c1)
             else:
                 wiring_chi = circ.eval_MLE_add(layer, a1 + b1 + c1)
@@ -908,18 +1079,110 @@ class Prover(Interactor):
                         beta_value = beta_array_3[copy_partial]
                     else:
                         raise ValueError("x must be 0, 1, 2 or 3, but got {}".format(x))
-                    W_iplus1_b = SU.DP_eval_MLE(
-                        W_iplus1,
-                        a2 + b1,
-                        k[layer + 1],
-                        p,
-                    )
-                    W_iplus1_c = SU.DP_eval_MLE(
-                        W_iplus1,
-                        a2 + c1,
-                        k[layer + 1],
-                        p,
-                    )
+                    # W_iplus1_b = SU.DP_eval_MLE(
+                    #     W_iplus1,
+                    #     a2 + b1,
+                    #     k[layer + 1],
+                    #     p,
+                    # )
+                    # W_iplus1_c = SU.DP_eval_MLE(
+                    #     W_iplus1,
+                    #     a2 + c1,
+                    #     k[layer + 1],
+                    #     p,
+                    # )
+                    if x == 0:
+                        W_iplus1_b = Cormode_b_0[
+                            SU.tuple_to_int(
+                                a2[
+                                    step
+                                    - (
+                                        copy_k[layer]
+                                        + 2 * (k[layer + 1] - num_copy[layer])
+                                    ) :
+                                ]
+                            )
+                        ]
+                        W_iplus1_c = Cormode_c_0[
+                            SU.tuple_to_int(
+                                a2[
+                                    step
+                                    - (
+                                        copy_k[layer]
+                                        + 2 * (k[layer + 1] - num_copy[layer])
+                                    ) :
+                                ]
+                            )
+                        ]
+                    if x == 1:
+                        W_iplus1_b = Cormode_b_1[
+                            SU.tuple_to_int(
+                                a2[
+                                    step
+                                    - (
+                                        copy_k[layer]
+                                        + 2 * (k[layer + 1] - num_copy[layer])
+                                    ) :
+                                ]
+                            )
+                        ]
+                        W_iplus1_c = Cormode_c_1[
+                            SU.tuple_to_int(
+                                a2[
+                                    step
+                                    - (
+                                        copy_k[layer]
+                                        + 2 * (k[layer + 1] - num_copy[layer])
+                                    ) :
+                                ]
+                            )
+                        ]
+                    if x == 2:
+                        W_iplus1_b = Cormode_b_2[
+                            SU.tuple_to_int(
+                                a2[
+                                    step
+                                    - (
+                                        copy_k[layer]
+                                        + 2 * (k[layer + 1] - num_copy[layer])
+                                    ) :
+                                ]
+                            )
+                        ]
+                        W_iplus1_c = Cormode_c_2[
+                            SU.tuple_to_int(
+                                a2[
+                                    step
+                                    - (
+                                        copy_k[layer]
+                                        + 2 * (k[layer + 1] - num_copy[layer])
+                                    ) :
+                                ]
+                            )
+                        ]
+                    if x == 3:
+                        W_iplus1_b = Cormode_b_3[
+                            SU.tuple_to_int(
+                                a2[
+                                    step
+                                    - (
+                                        copy_k[layer]
+                                        + 2 * (k[layer + 1] - num_copy[layer])
+                                    ) :
+                                ]
+                            )
+                        ]
+                        W_iplus1_c = Cormode_c_3[
+                            SU.tuple_to_int(
+                                a2[
+                                    step
+                                    - (
+                                        copy_k[layer]
+                                        + 2 * (k[layer + 1] - num_copy[layer])
+                                    ) :
+                                ]
+                            )
+                        ]
                     if layer == d - 1:
                         poly_values[x] = (
                             poly_values[x]

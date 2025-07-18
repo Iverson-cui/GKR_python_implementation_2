@@ -24,8 +24,8 @@ import circuit
 import prover_GKR as P_GKR
 import verifier_GKR as V_GKR
 
-DEBUG_INFO = True
-TIME_INFO = False
+DEBUG_INFO = False
+TIME_INFO = True
 
 # current_dir is the folder which contains the current python file.
 current_dir = os.path.dirname(os.path.abspath(__file__))
