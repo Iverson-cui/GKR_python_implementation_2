@@ -209,6 +209,7 @@ class Verifier(Interactor):
             new_random_element = np.random.randint(0, p)
             self.append_element_SRE(layer, new_random_element)
             return new_random_element
+        # All other cases.
         if 1 < step <= k[layer] + 2 * (k[layer + 1] - num_copy[layer]):
             r = self.get_sumcheck_random_element(layer, step - 1)
             assert (
