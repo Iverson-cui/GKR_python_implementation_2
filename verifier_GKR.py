@@ -287,7 +287,7 @@ class Verifier(Interactor):
                 )
             )
         # Although called last_layer, for the sake of convenience, we don't change its name.
-        a1_last_layer = self.get_layer_i_sumcheck_random_elements(i)[0]
+        a1_last_layer = self.get_layer_i_sumcheck_random_elements(i)[: copy_k[i]]
         a2_last_layer = self.get_layer_i_sumcheck_random_elements(i)[-num_copy[i] :]
         self.process_SRE_for_parallelism(i, tuple(a2_last_layer))
         SRE_layer_i = self.get_layer_i_sumcheck_random_elements(i)
@@ -302,10 +302,10 @@ class Verifier(Interactor):
             add_mult_start_time = time.time()
         # Although random vector and random element are of length k[i] and 2*k[i+1] respectively, we only need to evaluate add and mult at their gate label.
         add_bstar_cstar = circ.eval_MLE_add(
-            i, (a1_last_layer,) + bstar[num_copy[i] :] + cstar[num_copy[i] :]
+            i, tuple(a1_last_layer) + bstar[num_copy[i] :] + cstar[num_copy[i] :]
         )
         mult_bstar_cstar = circ.eval_MLE_mult(
-            i, (a1_last_layer,) + bstar[num_copy[i] :] + cstar[num_copy[i] :]
+            i, tuple(a1_last_layer) + bstar[num_copy[i] :] + cstar[num_copy[i] :]
         )
         if TIME_INFO:
             add_mult_end_time = time.time()
@@ -319,13 +319,13 @@ class Verifier(Interactor):
         # (this is via the polynomial that the prover sends!!)
         if not i == d - 1:
             current_claimed_value_of_fi = (
-                SU.chi(RV_i, tuple(a2_last_layer) + (a1_last_layer,), k[i], p)
+                SU.chi(RV_i, tuple(a2_last_layer) + tuple(a1_last_layer), k[i], p)
                 * (add_bstar_cstar * (vals[0] + vals[1]))
                 % p
             )
         else:
             current_claimed_value_of_fi = (
-                SU.chi(RV_i, tuple(a2_last_layer) + (a1_last_layer,), k[i], p)
+                SU.chi(RV_i, tuple(a2_last_layer) + tuple(a1_last_layer), k[i], p)
                 * (mult_bstar_cstar * (vals[0] * vals[1]))
                 % p
             )

@@ -563,13 +563,20 @@ class Prover(Interactor):
                 ), f"wiring_chi must have length {degree}"
                 for copy in range(2 ** num_copy[layer]):
                     a2 = SU.int_to_bin(copy, num_copy[layer])
-                    final_beta = [
-                        beta_array_0[copy],
-                        beta_array_1[copy],
-                        beta_array_2[copy],
-                    ]
+                    if copy_k[layer] == 1:
+                        final_beta = [
+                            beta_array_0[copy],
+                            beta_array_1[copy],
+                            beta_array_2[copy],
+                        ]
+                    else:
+                        final_beta = [
+                            beta_array_0[SU.tuple_to_int(a1[step:] + a2)],
+                            beta_array_1[SU.tuple_to_int(a1[step:] + a2)],
+                            beta_array_2[SU.tuple_to_int(a1[step:] + a2)],
+                        ]
                     if layer == d - 1:
-                        final_beta.append(beta_array_3[copy])
+                        final_beta.append(beta_array_3[SU.tuple_to_int(a1[step:] + a2)])
                     W_iplus1_b = W_iplus1[(a2 + b1)]
                     W_iplus1_c = W_iplus1[(a2 + c1)]
                     for x in range(degree):
@@ -931,18 +938,22 @@ class Prover(Interactor):
             poly = self.sum_fi_parallel(layer, step)
             self.append_sumcheck_polynomial(layer, poly)
             return poly
-        # step == 2 means a_1 is fixed(we assume a_1 is 1 bit). for now the beta keeps the same until a_2 round.
-        if step == 2:
+        if step <= copy_k[layer] + 1:
             # update beta array
             self.reusing_work_beta_update(
-                self.get_random_vector(layer)[-1], random_element
+                self.get_random_vector(layer)[num_copy[layer] + step - 2],
+                random_element,
             )
             self.append_element_SRE(layer, random_element)
             poly = self.sum_fi_parallel(layer, step)
             self.append_sumcheck_polynomial(layer, poly)
             return poly
         # when step == copy_k[layer] + 2 * (k[layer + 1] - num_copy[layer]) + 1, we are actually fixing a_2, but since we don't need to update the beta array, the code is the same as previous situations.
-        if 3 <= step <= copy_k[layer] + 2 * (k[layer + 1] - num_copy[layer]) + 1:
+        if (
+            copy_k[layer] + 1
+            < step
+            <= copy_k[layer] + 2 * (k[layer + 1] - num_copy[layer]) + 1
+        ):
             self.append_element_SRE(layer, random_element)
             poly = self.sum_fi_parallel(layer, step)
             self.append_sumcheck_polynomial(layer, poly)
