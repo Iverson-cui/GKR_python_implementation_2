@@ -12,7 +12,7 @@ from interactor_GKR import Interactor
 import sumcheck_util as SU
 import circuit
 
-DEBUG_INFO = False
+DEBUG_INFO = True
 
 
 class Prover(Interactor):
@@ -43,12 +43,17 @@ class Prover(Interactor):
 
         The partition_swap_dicts is mainly used for Cormode_eval_W in parallelism sum_fi function.
         """
-        copy_k = self.circ.get_copy_k()
+        # copy_k = self.circ.get_copy_k()
         k = self.get_k()
+        num_copy = self.circ.get_num_copy()
         # including the input layer.
         for i in range(self.d + 1):
             L = self.circ.get_W(i)
-            swapped_dict = SU.partition_swap_dict_keys(L, k[i], copy_k[i])
+            swapped_dict = (
+                SU.partition_swap_dict_keys(L, k[i], k[i] - num_copy[i - 1])
+                if i >= 1
+                else L
+            )
             self.partition_swap_dicts.append(swapped_dict)
 
     def receive_random_vector(self, i: int, r_i: tuple):
@@ -619,6 +624,36 @@ class Prover(Interactor):
                 num_copy[layer]
             )} elements, but got {len(self.current_beta_array)}"
             a1 = bc_partial[: copy_k[layer]]
+            Cormode_b_0 = SU.Cormode_eval_W(
+                self.partition_swap_dicts[layer + 1],
+                bc_partial[copy_k[layer] :] + (0,),
+                step - copy_k[layer],
+                k[layer + 1],
+                p,
+            )
+            Cormode_b_1 = SU.Cormode_eval_W(
+                self.partition_swap_dicts[layer + 1],
+                bc_partial[copy_k[layer] :] + (1,),
+                step - copy_k[layer],
+                k[layer + 1],
+                p,
+            )
+            Cormode_b_2 = SU.Cormode_eval_W(
+                self.partition_swap_dicts[layer + 1],
+                bc_partial[copy_k[layer] :] + (2,),
+                step - copy_k[layer],
+                k[layer + 1],
+                p,
+            )
+            assert len(Cormode_b_0) == 2 ** (
+                k[layer + 1] + copy_k[layer] - step
+            ), f"Cormode_b_0 must have {2**(k[layer + 1] - step)} elements, but got {len(Cormode_b_0)}"
+            assert len(Cormode_b_1) == 2 ** (
+                k[layer + 1] + copy_k[layer] - step
+            ), f"Cormode_b_1 must have {2**(k[layer + 1] - step)} elements, but got {len(Cormode_b_1)}"
+            assert len(Cormode_b_2) == 2 ** (
+                k[layer + 1] + copy_k[layer] - step
+            ), f"Cormode_b_2 must have {2**(k[layer + 1] - step)} elements, but got {len(Cormode_b_2)}"
             # beta_array keeps the same in this process. No need to update it.
             for gate in range(2 ** copy_k[layer]):
                 # gate_inputs, a_gate, b1, c1 are all independent of x.
@@ -647,24 +682,42 @@ class Prover(Interactor):
                     )
                     for copy in range(2 ** num_copy[layer]):
                         a2 = SU.int_to_bin(copy, num_copy[layer])
-                        # W_iplus1_b = SU.Cormode_eval_W(
-                        #     W_iplus1,
-                        #     a2
-                        #     + b1[: step - copy_k[layer]]
-                        #     + a_gate[
-                        #         step : copy_k[layer] + k[layer + 1] - num_copy[layer]
-                        #     ],
-                        #     num_copy[layer] + step - copy_k[layer],
-                        #     k[layer + 1],
-                        #     p,
-                        # )
+                        if x == 0:
+                            W_iplus1_b = Cormode_b_0[
+                                SU.tuple_to_int(
+                                    a_gate[
+                                        step : copy_k[layer]
+                                        + k[layer + 1]
+                                        - num_copy[layer]
+                                    ]
+                                    + a2
+                                )
+                            ]
+                        if x == 1:
+                            W_iplus1_b = Cormode_b_1[
+                                SU.tuple_to_int(
+                                    a_gate[
+                                        step : copy_k[layer]
+                                        + k[layer + 1]
+                                        - num_copy[layer]
+                                    ]
+                                    + a2
+                                )
+                            ]
+                        if x == 2:
+                            W_iplus1_b = Cormode_b_2[
+                                SU.tuple_to_int(
+                                    a_gate[
+                                        step : copy_k[layer]
+                                        + k[layer + 1]
+                                        - num_copy[layer]
+                                    ]
+                                    + a2
+                                )
+                            ]
                         W_iplus1_b = SU.DP_eval_MLE(
                             W_iplus1,
-                            a2
-                            + b1[: step - copy_k[layer]]
-                            + a_gate[
-                                step : copy_k[layer] + k[layer + 1] - num_copy[layer]
-                            ],
+                            a2 + b1,
                             k[layer + 1],
                             p,
                         )
