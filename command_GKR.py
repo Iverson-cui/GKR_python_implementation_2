@@ -30,7 +30,7 @@ TIME_INFO = True
 # current_dir is the folder which contains the current python file.
 current_dir = os.path.dirname(os.path.abspath(__file__))
 # print("current_dir:", current_dir)
-data_dir = os.path.join(current_dir, "./test_circuit/8_3dconv.csv")
+data_dir = os.path.join(current_dir, "./test_circuit/4_3dconv.csv")
 # file_path = os.path.join(data_dir, "events_semantic.json")
 
 
@@ -194,7 +194,7 @@ def execute(C):
 
 # C = [circuit.createCircuit("circuitdata-{}.csv".format(i), 10007) for i in range(1, 5)]
 # Deep_C = circuit.createCircuit("deep_circuit-1.csv", 10007)
-test_circuit = circuit.createCircuit(data_dir, [3, 3, 3, 3, 3, 3, 3, 3], 10007)
+test_circuit = circuit.createCircuit(data_dir, [2, 2, 3, 4, 5, 6, 7, 8], 10007)
 execution_time = timeit.timeit(lambda: execute(test_circuit), number=3)
 print(
     "\033[33mExecution time for test_circuit: {}\033[0m seconds".format(
