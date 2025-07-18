@@ -24,8 +24,8 @@ import circuit
 import prover_GKR as P_GKR
 import verifier_GKR as V_GKR
 
-DEBUG_INFO = True
-TIME_INFO = False
+DEBUG_INFO = False
+TIME_INFO = True
 
 # current_dir is the folder which contains the current python file.
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -95,9 +95,9 @@ def execute(C):
                 )
             )
 
-        for s in range(copy_k[i] + 2 * (k[i + 1] - num_copy[i]) + num_copy[i] + 1):
+        for s in range(k[i] + 2 * (k[i + 1] - num_copy[i]) + 1):
             # we want to check the time spent on a1 to c1 gate loop.
-            if TIME_INFO:
+            if TIME_INFO and s == copy_k[i] + 2 * (k[i + 1] - num_copy[i]):
                 last_layer_a1_b1_c1_end_time = time.time()
                 print(
                     "\033[32mTime for layer {} a1 to c1 gate loop: {}\033[0m".format(
@@ -183,9 +183,9 @@ def execute(C):
 # C = [circuit.createCircuit("circuitdata-{}.csv".format(i), 10007) for i in range(1, 5)]
 # Deep_C = circuit.createCircuit("deep_circuit-1.csv", 10007)
 test_circuit = circuit.createCircuit(data_dir, [2, 2, 2, 2, 2, 2, 2, 2], 10007)
-execution_time = timeit.timeit(lambda: execute(test_circuit), number=5)
+execution_time = timeit.timeit(lambda: execute(test_circuit), number=3)
 print(
     "\033[33mExecution time for test_circuit: {}\033[0m seconds".format(
-        execution_time / 5
+        execution_time / 3
     )
 )
