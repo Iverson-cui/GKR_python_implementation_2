@@ -645,6 +645,14 @@ class Prover(Interactor):
                 k[layer + 1],
                 p,
             )
+            if layer == d - 1:
+                Cormode_b_3 = SU.Cormode_eval_W(
+                    self.partition_swap_dicts[layer + 1],
+                    bc_partial[copy_k[layer] :] + (3,),
+                    step - copy_k[layer],
+                    k[layer + 1],
+                    p,
+                )
             assert len(Cormode_b_0) == 2 ** (
                 k[layer + 1] + copy_k[layer] - step
             ), f"Cormode_b_0 must have {2**(k[layer + 1] - step)} elements, but got {len(Cormode_b_0)}"
@@ -715,12 +723,17 @@ class Prover(Interactor):
                                     + a2
                                 )
                             ]
-                        W_iplus1_b = SU.DP_eval_MLE(
-                            W_iplus1,
-                            a2 + b1,
-                            k[layer + 1],
-                            p,
-                        )
+                        if x == 3:
+                            W_iplus1_b = Cormode_b_3[
+                                SU.tuple_to_int(
+                                    a_gate[
+                                        step : copy_k[layer]
+                                        + k[layer + 1]
+                                        - num_copy[layer]
+                                    ]
+                                    + a2
+                                )
+                            ]
                         W_iplus1_c = W_iplus1[(a2 + c1)]
 
                         if layer == d - 1:
