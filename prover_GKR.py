@@ -26,6 +26,7 @@ class Prover(Interactor):
         # Prover needs to compute the circuit. This is done once initialized.
         self.circ.compute_circuit()
         self.current_beta_array = []
+        self.partition_swap_dicts = []
 
     def output_layer_communication(self):
         """
@@ -34,6 +35,19 @@ class Prover(Interactor):
         We don't consider the possibility of bad prover. So every message prover sends to Verifier is really from the circuit result.
         """
         return self.circ.get_W(0)
+
+    def swap_the_circuit(self):
+        """
+        This function returns a list of dictionaries. Each dict in it corresponds to the partition and swap version of the circuit layer original dict. For the original, copy goes first then the gate. Here gate goes first then copy.
+
+        The partition_swap_dicts is mainly used for Cormode_eval_W in parallelism sum_fi function.
+        """
+        copy_k = self.circ.get_copy_k()
+        k = self.get_k()
+        for i in range(self.d):
+            L = self.circ.get_W(i)
+            swapped_dict = SU.partition_swap_dict_keys(L, k[i], copy_k[i])
+            self.partition_swap_dicts.append(swapped_dict)
 
     def receive_random_vector(self, i: int, r_i: tuple):
         """
