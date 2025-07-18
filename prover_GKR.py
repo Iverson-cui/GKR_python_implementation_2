@@ -27,6 +27,7 @@ class Prover(Interactor):
         self.circ.compute_circuit()
         self.current_beta_array = []
         self.partition_swap_dicts = []
+        self.swap_the_circuit()
 
     def output_layer_communication(self):
         """
@@ -44,7 +45,8 @@ class Prover(Interactor):
         """
         copy_k = self.circ.get_copy_k()
         k = self.get_k()
-        for i in range(self.d):
+        # including the input layer.
+        for i in range(self.d + 1):
             L = self.circ.get_W(i)
             swapped_dict = SU.partition_swap_dict_keys(L, k[i], copy_k[i])
             self.partition_swap_dicts.append(swapped_dict)
