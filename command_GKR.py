@@ -11,7 +11,7 @@ import os
 # current_dir is the folder which contains the current python file.
 current_dir = os.path.dirname(os.path.abspath(__file__))
 # print("current_dir:", current_dir)
-data_dir = os.path.join(current_dir, "./test_circuit/8_3d_encap.csv")
+data_dir = os.path.join(current_dir, "./test_circuit/4_3dencap.csv")
 # file_path = os.path.join(data_dir, "events_semantic.json")
 
 
@@ -180,7 +180,20 @@ def execute(C):
         # for encapsutation version.
         else:
             for s in range(k[i + 1] - num_copy[i] + 1):
+                if TIME_INFO:
+                    partial_sumcheck_parallel_start_time = time.time()
+
                 prover_msg = prover_inst.partial_sumcheck(i, s, r)
+                if TIME_INFO:
+                    partial_sumcheck_parallel_end_time = time.time()
+                    print(
+                        "Time for layer {} step {} partial sumcheck parallel: {}".format(
+                            i,
+                            s,
+                            partial_sumcheck_parallel_end_time
+                            - partial_sumcheck_parallel_start_time,
+                        )
+                    )
                 if DEBUG_INFO:
                     string_of_prover_msg = "+".join(
                         ["{}*x^{}".format(prover_msg[l], l) for l in [2, 1, 0]]
@@ -236,7 +249,7 @@ def execute(C):
 
 # C = [circuit.createCircuit("circuitdata-{}.csv".format(i), 10007) for i in range(1, 5)]
 # Deep_C = circuit.createCircuit("deep_circuit-1.csv", 10007)
-test_circuit = circuit.createCircuit(data_dir, [3, 4, 8, 9], 10007)
+test_circuit = circuit.createCircuit(data_dir, [2, 3, 7, 8], 10007)
 execution_time = timeit.timeit(lambda: execute(test_circuit), number=5)
 print(
     "\033[33mExecution time for test_circuit: {}\033[0m seconds".format(
