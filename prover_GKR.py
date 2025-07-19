@@ -156,12 +156,11 @@ class Prover(Interactor):
         Cormode_b_0 = None
         Cormode_b_1 = None
         Cormode_b_2 = None
-        Cormode_b_3 = None
+
         Cormode_c = None
         Cormode_c_0 = None
         Cormode_c_1 = None
         Cormode_c_2 = None
-        Cormode_c_3 = None
 
         # First case. Use cormode for b in every s and Cormode for c once for all s.
         if s < k[i + 1] - num_copy[i]:
@@ -184,6 +183,15 @@ class Prover(Interactor):
             Cormode_c = SU.Cormode_eval_W(W_iplus1, z2, num_copy[i], k[i + 1], p)
         # Second case. b is calculated by MLE eval, while c is calculated with the same Cormode as above.
         elif s == k[i + 1] - num_copy[i]:
+            W_iplus1_at_b_0 = SU.Cormode_eval_W(
+                W_iplus1, z2 + bc_partial + (0,), k[i + 1], k[i + 1], p
+            )[0]
+            W_iplus1_at_b_1 = SU.Cormode_eval_W(
+                W_iplus1, z2 + bc_partial + (1,), k[i + 1], k[i + 1], p
+            )[0]
+            W_iplus1_at_b_2 = SU.Cormode_eval_W(
+                W_iplus1, z2 + bc_partial + (2,), k[i + 1], k[i + 1], p
+            )[0]
             Cormode_c = SU.Cormode_eval_W(W_iplus1, z2, num_copy[i], k[i + 1], p)
         # Third case, B is still calculated by MLE, C is calculated by Cormode per step.
         elif k[i + 1] - num_copy[i] < s < 2 * (k[i + 1] - num_copy[i]):
@@ -195,9 +203,6 @@ class Prover(Interactor):
             )
             partial_input_to_c_2 = (
                 z2 + bc_partial[k[i + 1] - num_copy[i] : s - 1] + (2,)
-            )
-            partial_input_to_c_3 = (
-                z2 + bc_partial[k[i + 1] - num_copy[i] : s - 1] + (3,)
             )
             Cormode_c_0 = SU.Cormode_eval_W(
                 W_iplus1,
@@ -220,15 +225,42 @@ class Prover(Interactor):
                 k[i + 1],
                 p,
             )
-            # Cormode_c_3 = SU.Cormode_eval_W(
-            #     W_iplus1,
-            #     partial_input_to_c_3,
-            #     s - (k[i + 1] - num_copy[i]) + num_copy[i],
-            #     k[i + 1],
-            #     p,
-            # )
-        else:
-            pass
+            W_iplus1_at_b = SU.Cormode_eval_W(
+                W_iplus1,
+                z2 + bc_partial[: k[i + 1] - num_copy[i]],
+                k[i + 1],
+                k[i + 1],
+                p,
+            )[0]
+        elif s == 2 * (k[i + 1] - num_copy[i]):
+            W_iplus1_at_b = SU.Cormode_eval_W(
+                W_iplus1,
+                z2 + bc_partial[: k[i + 1] - num_copy[i]],
+                k[i + 1],
+                k[i + 1],
+                p,
+            )[0]
+            W_iplus1_at_c_0 = SU.Cormode_eval_W(
+                W_iplus1,
+                z2 + bc_partial[k[i + 1] - num_copy[i] :] + (0,),
+                k[i + 1],
+                k[i + 1],
+                p,
+            )[0]
+            W_iplus1_at_c_1 = SU.Cormode_eval_W(
+                W_iplus1,
+                z2 + bc_partial[k[i + 1] - num_copy[i] :] + (1,),
+                k[i + 1],
+                k[i + 1],
+                p,
+            )[0]
+            W_iplus1_at_c_2 = SU.Cormode_eval_W(
+                W_iplus1,
+                z2 + bc_partial[k[i + 1] - num_copy[i] :] + (2,),
+                k[i + 1],
+                k[i + 1],
+                p,
+            )[0]
         # The Cormode evaluation should be done before going into each specific gate.
         for gate in range(2 ** copy_k[i]):
             # we use the first copy as an example.
@@ -302,23 +334,12 @@ class Prover(Interactor):
 
                 elif s == k[i + 1] - num_copy[i]:
                     # b: all FFE c: all binary, directly retrieve
-                    # TODO: change this to Cormode method to see if it improves performance.
                     if x == 0:
-                        W_iplus1_at_b = SU.DP_eval_MLE(
-                            W_iplus1, z2 + bc_partial + (0,), k[i + 1], p
-                        )
+                        W_iplus1_at_b = W_iplus1_at_b_0
                     elif x == 1:
-                        W_iplus1_at_b = SU.DP_eval_MLE(
-                            W_iplus1, z2 + bc_partial + (1,), k[i + 1], p
-                        )
+                        W_iplus1_at_b = W_iplus1_at_b_1
                     elif x == 2:
-                        W_iplus1_at_b = SU.DP_eval_MLE(
-                            W_iplus1, z2 + bc_partial + (2,), k[i + 1], p
-                        )
-                    elif x == 3:
-                        W_iplus1_at_b = SU.DP_eval_MLE(
-                            W_iplus1, z2 + bc_partial + (3,), k[i + 1], p
-                        )
+                        W_iplus1_at_b = W_iplus1_at_b_2
                     else:
                         raise ValueError("x must be 0, 1 or 2, but got {}".format(x))
 
@@ -328,9 +349,6 @@ class Prover(Interactor):
 
                 elif k[i + 1] - num_copy[i] < s < 2 * (k[i + 1] - num_copy[i]):
                     # b: all FFE c: Cormode, directly retrieve
-                    W_iplus1_at_b = SU.DP_eval_MLE(
-                        W_iplus1, z2 + bc_partial[: k[i + 1] - num_copy[i]], k[i + 1], p
-                    )
 
                     if x == 0:
                         W_iplus1_at_c = Cormode_c_0[
@@ -352,39 +370,13 @@ class Prover(Interactor):
                         raise ValueError("x must be 0, 1 or 2, but got {}".format(x))
 
                 elif s == 2 * (k[i + 1] - num_copy[i]):
-                    # TODO: If it improves change this part also.
-                    W_iplus1_at_b = SU.DP_eval_MLE(
-                        W_iplus1, z2 + bc_partial[: k[i + 1] - num_copy[i]], k[i + 1], p
-                    )
 
                     if x == 0:
-                        W_iplus1_at_c = SU.DP_eval_MLE(
-                            W_iplus1,
-                            z2 + bc_partial[k[i + 1] - num_copy[i] :] + (0,),
-                            k[i + 1],
-                            p,
-                        )
+                        W_iplus1_at_c = W_iplus1_at_c_0
                     elif x == 1:
-                        W_iplus1_at_c = SU.DP_eval_MLE(
-                            W_iplus1,
-                            z2 + bc_partial[k[i + 1] - num_copy[i] :] + (1,),
-                            k[i + 1],
-                            p,
-                        )
+                        W_iplus1_at_c = W_iplus1_at_c_1
                     elif x == 2:
-                        W_iplus1_at_c = SU.DP_eval_MLE(
-                            W_iplus1,
-                            z2 + bc_partial[k[i + 1] - num_copy[i] :] + (2,),
-                            k[i + 1],
-                            p,
-                        )
-                    elif x == 3:
-                        W_iplus1_at_c = SU.DP_eval_MLE(
-                            W_iplus1,
-                            z2 + bc_partial[k[i + 1] - num_copy[i] :] + (3,),
-                            k[i + 1],
-                            p,
-                        )
+                        W_iplus1_at_c = W_iplus1_at_c_2
                     else:
                         raise ValueError("x must be 0, 1 or 2, but got {}".format(x))
                 else:
