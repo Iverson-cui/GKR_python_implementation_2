@@ -283,17 +283,19 @@ class Verifier(Interactor):
         if TIME_INFO:
             add_mult_start_time = time.time()
         # Although random vector and random element are of length k[i] and 2*k[i+1] respectively, we only need to evaluate add and mult at their gate label.
-        add_bstar_cstar = circ.eval_MLE_add(
-            i, RV_i[-copy_k[i] :] + bstar[num_copy[i] :] + cstar[num_copy[i] :]
-        )
-        mult_bstar_cstar = circ.eval_MLE_mult(
-            i,
-            tuple(
-                a1_last_layer,
+        if not i == d - 1:
+            add_bstar_cstar = circ.eval_MLE_add(
+                i, RV_i[-copy_k[i] :] + bstar[num_copy[i] :] + cstar[num_copy[i] :]
             )
-            + bstar[num_copy[i] :]
-            + cstar[num_copy[i] :],
-        )
+        else:
+            mult_bstar_cstar = circ.eval_MLE_mult(
+                i,
+                tuple(
+                    a1_last_layer,
+                )
+                + bstar[num_copy[i] :]
+                + cstar[num_copy[i] :],
+            )
         if TIME_INFO:
             add_mult_end_time = time.time()
             print(
@@ -304,7 +306,7 @@ class Verifier(Interactor):
         # compute what the prover claims f_i(SRE_layer_i) is based on
         # what the prover claims W_{i+1}(bstar) and W_{i+1}(cstar) are.
         # (this is via the polynomial that the prover sends!!)
-        if not i == self.circ.get_depth() - 1:
+        if not i == d - 1:
             current_claimed_value_of_fi = (add_bstar_cstar * (vals[0] + vals[1])) % p
         else:
             current_claimed_value_of_fi = (
