@@ -1211,10 +1211,11 @@ class Prover(Interactor):
             poly = self.sum_fi_mult_layer(d - 1, step)
             self.append_sumcheck_polynomial(d - 1, poly)
             return poly
-        if step == 2:
+        if step <= copy_k[d - 1] + 1:
             # update beta array
             self.reusing_work_beta_update(
-                self.get_random_vector(d - 1)[num_copy], random_element
+                self.get_random_vector(d - 1)[num_copy[d - 1] + step - 2],
+                random_element,
             )
             self.append_element_SRE(d - 1, random_element)
             poly = self.sum_fi_mult_layer(d - 1, step)
