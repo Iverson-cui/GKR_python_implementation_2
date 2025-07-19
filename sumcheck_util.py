@@ -391,7 +391,7 @@ def Cormode_eval_W(
     """
     This function does the same thing as eval_MLE, but it's the special version used in sumcheck situations. This function is based on Cormode's method.
 
-    We assume the W_i+1 we are about to evaluate has part of their variables binary and the rest in finite field, since in sumcheck, not all W_i+1 are in this case. Other cases including full bianry and full finite field are handled in the sum_fi function.
+    If we want to use this function, we assume the W_i+1 we are about to evaluate has part of their variables binary and the rest in finite field, since in sumcheck, not all W_i+1 are in this case. Other cases including full binary and full finite field are handled in the sum_fi function.
 
     INPUTS: W_binary keeps the value of W_i+1 in binary input and is of length 2^N. It's a dictionary that has tuples as its keys like (1,0,0,1). step is the index of variable being fixed, num_var is the number of variables of W_binary(Basically = k[i+1]). prime is the prime number of the circuit. Input is the first s variables in this step.
 
@@ -539,3 +539,275 @@ def reusing_work_update(c_array: tuple, z_j: int, r_j: int, p: int):
         len(updated_array) == len(c_array) // 2
     ), f"updated_array must have length {len(c_array) // 2}, but got {len(updated_array)}"
     return updated_array
+
+
+def rotate_dict_keys(original_dict, key_length, rotation_amount=1, direction="right"):
+    """
+    Creates a new dictionary where keys are rotated versions of the original keys.
+
+    For each key in the new dictionary, we look up the value from the rotated
+    version of that key in the original dictionary. This creates a systematic
+    transformation of the data based on key rotation patterns.
+
+    To put it simply, for the new dict, first rotate the input key then find it in the original dict.
+
+    Parameters:
+    - original_dict: The input dictionary with tuple keys
+    - key_length: Length of the tuple keys (for validation)
+    - rotation_amount: How many positions to rotate (default: 1)
+    - direction: 'right' or 'left' rotation (default: 'right')
+
+    Returns:
+    - A new dictionary with the same keys but values retrieved from rotated positions
+
+    Examples:
+
+    Let's use a complete set of 2-tuples to avoid missing keys:
+    >>> small_dict = {(0,0): 100, (0,1): 200, (1,0): 300, (1,1): 400}
+    >>> result = rotate_dict_keys(small_dict, 2, 1, 'right')
+    >>> sorted(result.items())  # Right rotation: (a,b) -> value_from_(b,a)
+    [((0, 0), 100), ((0, 1), 300), ((1, 0), 200), ((1, 1), 400)]
+
+    Understanding the transformation step by step:
+    >>> # Key (0,1) in new dict gets value from key (1,0) in original
+    >>> result[(0,1)] == small_dict[(1,0)]
+    True
+    >>> # Key (1,0) in new dict gets value from key (0,1) in original
+    >>> result[(1,0)] == small_dict[(0,1)]
+    True
+
+    Left rotation works in the opposite direction:
+    >>> left_result = rotate_dict_keys(small_dict, 2, 1, 'left')
+    >>> left_result[(0,1)]  # Left rotation: (a,b) -> value_from_(b,a)
+    300
+    >>> left_result[(1,0)]  # Gets value from (0,1)
+    200
+
+    Testing with 3-tuples and different rotation amounts:
+    >>> dict_3d = {(0,0,0): 1, (0,0,1): 2, (0,1,0): 3, (1,0,0): 4}
+    >>> # Right rotation by 1: (a,b,c) -> value_from_(c,a,b)
+    >>> r1 = rotate_dict_keys(dict_3d, 3, 1, 'right')
+    >>> r1[(0,0,1)]  # Gets value from (1,0,0)
+    4
+    >>> r1[(1,0,0)]  # Gets value from (0,1,0)
+    3
+
+    Right rotation by 2: (a,b,c) -> value_from_(b,c,a)
+    >>> r2 = rotate_dict_keys(dict_3d, 3, 2, 'right')
+    >>> r2[(0,0,1)]  # Gets value from (0,1,0)
+    3
+    >>> r2[(0,1,0)]  # Gets value from (1,0,0)
+    4
+
+    Rotation amount larger than tuple length (wraps around):
+    >>> # Rotation by 4 is same as rotation by 1 for 3-tuples (4 % 3 = 1)
+    >>> r4 = rotate_dict_keys(dict_3d, 3, 4, 'right')
+    >>> r4[(0,0,1)] == r1[(0,0,1)]  # Should be same as rotation by 1
+    True
+
+    Error case - wrong key length:
+    >>> bad_dict = {(0,0): 100, (0,0,0): 200}  # Mixed lengths
+    >>> rotate_dict_keys(bad_dict, 2, 1, 'right')
+    Traceback (most recent call last):
+    ...
+    ValueError: Key (0, 0, 0) has length 3, expected 2
+
+    Error case - invalid direction:
+    >>> rotate_dict_keys(small_dict, 2, 1, 'sideways')
+    Traceback (most recent call last):
+    ...
+    ValueError: Direction must be 'right' or 'left'
+
+    Edge case - rotation amount of 0 (identity transformation):
+    >>> identity = rotate_dict_keys(small_dict, 2, 0, 'right')
+    >>> identity == small_dict
+    True
+
+    Demonstrating the cyclic nature - full rotation returns to original:
+    >>> full_rotation = rotate_dict_keys(small_dict, 2, 2, 'right')  # 2 steps for 2-tuples
+    >>> full_rotation == small_dict
+    True
+    """
+
+    def rotate_tuple(t, amount, direction):
+        """Helper function to rotate a tuple by given amount and direction."""
+        n = len(t)
+        if direction == "right":
+            # Right rotation: last elements move to front
+            # Amount 1: (a,b,c,d) -> (d,a,b,c)
+            effective_rotation = amount % n
+            if effective_rotation == 0:
+                return t
+            return t[-effective_rotation:] + t[:-effective_rotation]
+        elif direction == "left":
+            # Left rotation: first elements move to back
+            # Amount 1: (a,b,c,d) -> (b,c,d,a)
+            effective_rotation = amount % n
+            if effective_rotation == 0:
+                return t
+            return t[effective_rotation:] + t[:effective_rotation]
+        else:
+            raise ValueError("Direction must be 'right' or 'left'")
+
+    # Validate that all keys have the expected length
+    for key in original_dict:
+        if len(key) != key_length:
+            raise ValueError(f"Key {key} has length {len(key)}, expected {key_length}")
+
+    # Create the new dictionary
+    new_dict = {}
+    for key in original_dict:
+        # For new key, find where its value should come from in original dict
+        source_key = rotate_tuple(key, rotation_amount, direction)
+
+        # Check if the source key exists in original dictionary
+        if source_key not in original_dict:
+            raise KeyError(f"Rotated key {source_key} not found in original dictionary")
+
+        new_dict[key] = original_dict[source_key]
+
+    return new_dict
+
+
+def partition_swap_dict_keys(original_dict, key_length, split_position):
+    """
+    Creates a new dictionary where keys are rearranged by splitting and swapping parts.
+
+    This function takes each key, splits it at the specified position, and swaps
+    the two parts. For example, (a1, a2, b1, b2, b3) with split_position=2
+    becomes (b1, b2, b3, a1, a2).
+
+    Think of it as having two groups of elements in each key, and we want to
+    put the second group first and the first group second, while maintaining
+    the order within each group.
+
+    Parameters:
+    - original_dict: Dictionary with tuple keys to transform
+    - key_length: Expected length of all tuple keys (for validation)
+    - split_position: Where to split each key (0-indexed, exclusive of split point)
+                     For example, split_position=2 means first 2 elements vs remaining
+
+    Returns:
+    - New dictionary where each key is the partition-swapped version of original keys
+
+    Examples:
+
+    Basic example with 5-element tuples, split at position 2:
+    >>> original = {(0, 1, 2, 3, 4): 100, (1, 0, 3, 2, 4): 200}
+    >>> result = partition_swap_dict_keys(original, 5, 2)
+    >>> # Key (0,1,2,3,4) should get value from key (2,3,4,0,1)
+    >>> # But (2,3,4,0,1) must exist in original for this to work
+    >>> # Let's create a complete example that works:
+
+    Working example with 4-element tuples:
+    >>> test_dict = {
+    ...     (0, 1, 2, 3): 10,
+    ...     (2, 3, 0, 1): 20,
+    ...     (1, 0, 3, 2): 30,
+    ...     (3, 2, 1, 0): 40
+    ... }
+    >>> result = partition_swap_dict_keys(test_dict, 4, 2)
+    >>> result[(0, 1, 2, 3)]  # Gets value from (2, 3, 0, 1)
+    20
+    >>> result[(2, 3, 0, 1)]  # Gets value from (0, 1, 2, 3)
+    10
+
+    Understanding the transformation step by step:
+    >>> # Original key (0,1,2,3) splits into (0,1) and (2,3)
+    >>> # Swapped becomes (2,3,0,1) - this is our lookup key
+    >>> original_key = (0, 1, 2, 3)
+    >>> first_part = original_key[:2]   # (0, 1)
+    >>> second_part = original_key[2:]  # (2, 3)
+    >>> lookup_key = second_part + first_part  # (2, 3, 0, 1)
+    >>> result[original_key] == test_dict[lookup_key]
+    True
+
+    Different split positions create different transformations:
+    >>> # Split at position 1: first 1 element vs remaining 3
+    >>> result_split1 = partition_swap_dict_keys(test_dict, 4, 1)
+    >>> # Key (0,1,2,3) becomes lookup key (1,2,3,0)
+    >>> # We need to check if (1,2,3,0) exists in our test_dict
+    >>> # It doesn't, so let's make a simpler example:
+
+    Simple 3-element example:
+    >>> simple = {(0, 1, 2): 100, (1, 2, 0): 200, (2, 0, 1): 300}
+    >>> result3 = partition_swap_dict_keys(simple, 3, 1)
+    >>> result3[(0, 1, 2)]  # Split: (0) and (1,2) -> lookup (1,2,0)
+    200
+    >>> result3[(1, 2, 0)]  # Split: (1) and (2,0) -> lookup (2,0,1)
+    300
+
+    Edge case - split at position 0 (everything goes to second part):
+    >>> edge_result = partition_swap_dict_keys(simple, 3, 0)
+    >>> edge_result[(0, 1, 2)]  # Split: () and (0,1,2) -> lookup (0,1,2)
+    100
+    >>> # This is identity transformation when split_position=0
+
+    Edge case - split at end (everything goes to first part):
+    >>> end_result = partition_swap_dict_keys(simple, 3, 3)
+    >>> end_result[(0, 1, 2)]  # Split: (0,1,2) and () -> lookup (0,1,2)
+    100
+    >>> # This is also identity transformation when split_position=key_length
+
+    Error cases:
+    >>> partition_swap_dict_keys({(0, 1): 10}, 3, 1)  # Wrong key length
+    Traceback (most recent call last):
+    ...
+    ValueError: Key (0, 1) has length 2, expected 3
+
+    >>> partition_swap_dict_keys(simple, 3, 5)  # Split position out of range
+    Traceback (most recent call last):
+    ...
+    ValueError: Split position 5 is out of range for key length 3
+
+    >>> partition_swap_dict_keys(simple, 3, -1)  # Negative split position
+    Traceback (most recent call last):
+    ...
+    ValueError: Split position -1 is out of range for key length 3
+    """
+
+    def partition_and_swap(key_tuple, split_pos):
+        """
+        Helper function to split a tuple and swap the parts.
+
+        Args:
+            key_tuple: The tuple to split and swap
+            split_pos: Position where to split (first split_pos elements vs rest)
+
+        Returns:
+            New tuple with parts swapped
+        """
+        # Split the tuple into two parts
+        first_part = key_tuple[:split_pos]  # Elements 0 to split_pos-1
+        second_part = key_tuple[split_pos:]  # Elements split_pos to end
+
+        # Swap: put second part first, then first part
+        return second_part + first_part
+
+    # Validation: Check split position is valid
+    if split_position < 0 or split_position > key_length:
+        raise ValueError(
+            f"Split position {split_position} is out of range for key length {key_length}"
+        )
+
+    # Validation: Check all keys have expected length
+    for key in original_dict:
+        if len(key) != key_length:
+            raise ValueError(f"Key {key} has length {len(key)}, expected {key_length}")
+
+    # Create the transformed dictionary
+    new_dict = {}
+    for key in original_dict:
+        # Transform the key to find where its value should come from
+        lookup_key = partition_and_swap(key, split_position)
+
+        # Verify the lookup key exists in original dictionary
+        if lookup_key not in original_dict:
+            raise KeyError(
+                f"Transformed key {lookup_key} not found in original dictionary"
+            )
+
+        # Store the value from the transformed key location
+        new_dict[key] = original_dict[lookup_key]
+
+    return new_dict

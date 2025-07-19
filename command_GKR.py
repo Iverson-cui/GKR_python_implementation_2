@@ -105,7 +105,19 @@ def execute(C):
                                 i, last_layer_a1_b1_c1_end_time - gate_loop_start_time
                             )
                         )
+                if TIME_INFO:
+                    partial_sumcheck_parallel_start_time = time.time()
                 prover_msg = prover_inst.partial_sumcheck_mult_layer(s, r)
+                if TIME_INFO:
+                    partial_sumcheck_parallel_end_time = time.time()
+                    print(
+                        "Time for layer {} step {} partial sumcheck parallel: {}".format(
+                            i,
+                            s,
+                            partial_sumcheck_parallel_end_time
+                            - partial_sumcheck_parallel_start_time,
+                        )
+                    )
                 if DEBUG_INFO:
                     string_of_prover_msg = "+".join(
                         ["{}*x^{}".format(prover_msg[l], l) for l in [2, 1, 0]]
@@ -224,7 +236,7 @@ def execute(C):
 
 # C = [circuit.createCircuit("circuitdata-{}.csv".format(i), 10007) for i in range(1, 5)]
 # Deep_C = circuit.createCircuit("deep_circuit-1.csv", 10007)
-test_circuit = circuit.createCircuit(data_dir, [3, 4, 8, 9], 10007)
+test_circuit = circuit.createCircuit(data_dir, [3, 3, 3, 3], 10007)
 execution_time = timeit.timeit(lambda: execute(test_circuit), number=5)
 print(
     "\033[33mExecution time for test_circuit: {}\033[0m seconds".format(
