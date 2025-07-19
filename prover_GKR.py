@@ -583,6 +583,7 @@ class Prover(Interactor):
                             beta_array_0[copy],
                             beta_array_1[copy],
                             beta_array_2[copy],
+                            beta_array_3[copy],
                         ]
                     else:
                         final_beta = [
@@ -1210,11 +1211,10 @@ class Prover(Interactor):
             poly = self.sum_fi_mult_layer(d - 1, step)
             self.append_sumcheck_polynomial(d - 1, poly)
             return poly
-        # step == 2 means a_1 is fixed(we assume a_1 is 1 bit). for now the beta keeps the same until a_2 round.
         if step == 2:
             # update beta array
             self.reusing_work_beta_update(
-                self.get_random_vector(d - 1)[-1], random_element
+                self.get_random_vector(d - 1)[num_copy], random_element
             )
             self.append_element_SRE(d - 1, random_element)
             poly = self.sum_fi_mult_layer(d - 1, step)

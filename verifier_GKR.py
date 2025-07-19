@@ -291,7 +291,12 @@ class Verifier(Interactor):
             i, RV_i[-copy_k[i] :] + bstar[num_copy[i] :] + cstar[num_copy[i] :]
         )
         mult_bstar_cstar = circ.eval_MLE_mult(
-            i, (a1_last_layer,) + bstar[num_copy[i] :] + cstar[num_copy[i] :]
+            i,
+            tuple(
+                a1_last_layer,
+            )
+            + bstar[num_copy[i] :]
+            + cstar[num_copy[i] :],
         )
         if TIME_INFO:
             add_mult_end_time = time.time()

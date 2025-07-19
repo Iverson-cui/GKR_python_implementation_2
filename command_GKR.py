@@ -98,15 +98,27 @@ def execute(C):
         # For mult layer, we use partial_sumcheck_mult_layer and partial_sumcheck_check_mult_layer.
         if i == d - 1:
             for s in range(copy_k[i] + 2 * (k[i + 1] - num_copy[i]) + num_copy[i] + 1):
-                if s == copy_k[i] + 2 * (k[i + 1] - num_copy[i]):
-                    if TIME_INFO:
-                        last_layer_a1_b1_c1_end_time = time.time()
-                        print(
-                            "\033[32mTime for layer {} a1 to c1 gate loop: {}\033[0m".format(
-                                i, last_layer_a1_b1_c1_end_time - gate_loop_start_time
-                            )
+                # we want to check the time spent on a1 to c1 gate loop.
+                if TIME_INFO and s == 1 + copy_k[i] + 2 * (k[i + 1] - num_copy[i]):
+                    last_layer_a1_b1_c1_end_time = time.time()
+                    print(
+                        "\033[32mTime for layer {} a1 to c1 gate loop: {}\033[0m".format(
+                            i, last_layer_a1_b1_c1_end_time - gate_loop_start_time
                         )
+                    )
+                if TIME_INFO:
+                    partial_sumcheck_parallel_start_time = time.time()
                 prover_msg = prover_inst.partial_sumcheck_mult_layer(s, r)
+                if TIME_INFO:
+                    partial_sumcheck_parallel_end_time = time.time()
+                    print(
+                        "Time for layer {} step {} partial sumcheck parallel: {}".format(
+                            i,
+                            s,
+                            partial_sumcheck_parallel_end_time
+                            - partial_sumcheck_parallel_start_time,
+                        )
+                    )
                 if DEBUG_INFO:
                     string_of_prover_msg = "+".join(
                         ["{}*x^{}".format(prover_msg[l], l) for l in [2, 1, 0]]
@@ -131,7 +143,20 @@ def execute(C):
                 # when s=0, the prover just passes the MLE evaluated at the random vector passed by verifier. This is evident from p34 of the book. Prover needs to first send the sum of binary input of f_i.
                 # i means layer number, s means step number, r means random element.
                 # when s=1, fixing the first variable, there is no random element. This coincides with what the partial_sumcheck_check returns at s=0, namely, 0.
+                if TIME_INFO:
+                    partial_sumcheck_parallel_start_time = time.time()
+
                 prover_msg = prover_inst.partial_sumcheck(i, s, r)
+                if TIME_INFO:
+                    partial_sumcheck_parallel_end_time = time.time()
+                    print(
+                        "Time for layer {} step {} partial sumcheck parallel: {}".format(
+                            i,
+                            s,
+                            partial_sumcheck_parallel_end_time
+                            - partial_sumcheck_parallel_start_time,
+                        )
+                    )
                 if DEBUG_INFO:
                     string_of_prover_msg = "+".join(
                         ["{}*x^{}".format(prover_msg[l], l) for l in [2, 1, 0]]
@@ -210,10 +235,10 @@ def execute(C):
 
 # C = [circuit.createCircuit("circuitdata-{}.csv".format(i), 10007) for i in range(1, 5)]
 # Deep_C = circuit.createCircuit("deep_circuit-1.csv", 10007)
-test_circuit = circuit.createCircuit(data_dir, [5, 5, 6, 7, 8, 9, 10, 11], 10007)
-execution_time = timeit.timeit(lambda: execute(test_circuit), number=1)
+test_circuit = circuit.createCircuit(data_dir, [5, 5, 5, 5, 5, 5, 5, 5], 10007)
+execution_time = timeit.timeit(lambda: execute(test_circuit), number=5)
 print(
     "\033[33mExecution time for test_circuit: {}\033[0m seconds".format(
-        execution_time / 1
+        execution_time / 5
     )
 )
