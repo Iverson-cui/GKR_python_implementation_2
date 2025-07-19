@@ -205,12 +205,20 @@ class Prover(Interactor):
                 assert len(mult_chi) == 4, "mult_chi must have length 4"
                 for copy in range(2 ** num_copy[layer]):
                     a2 = SU.int_to_bin(copy, num_copy[layer])
-                    final_beta = [
-                        beta_array_0[copy],
-                        beta_array_1[copy],
-                        beta_array_2[copy],
-                        beta_array_3[copy],
-                    ]
+                    if copy_k[layer] == 1:
+                        final_beta = [
+                            beta_array_0[copy],
+                            beta_array_1[copy],
+                            beta_array_2[copy],
+                            beta_array_3[copy],
+                        ]
+                    else:
+                        final_beta = [
+                            beta_array_0[SU.tuple_to_int(a1[step:] + a2)],
+                            beta_array_1[SU.tuple_to_int(a1[step:] + a2)],
+                            beta_array_2[SU.tuple_to_int(a1[step:] + a2)],
+                            beta_array_3[SU.tuple_to_int(a1[step:] + a2)],
+                        ]
                     W_iplus1_b = W_iplus1[(a2 + b1)]
                     W_iplus1_c = W_iplus1[(a2 + c1)]
                     for x in range(4):

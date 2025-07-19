@@ -75,9 +75,9 @@ class Verifier(Interactor):
         """
         p = self.p
         d = self.d
-        copy_k = self.get_circ().get_copy_k()
         k = self.get_k()
         num_copy = self.get_num_copy()
+        copy_k = self.get_circ().get_copy_k()
         assert i >= 0 and i < d, "i is out of bounds"
         assert (
             s >= 0 and s <= k[i + 1] - num_copy[i]
@@ -245,12 +245,13 @@ class Verifier(Interactor):
         We have therefore reduced ourselves to a statement about \tilde{W}_{i+1}.
         """
         # phase 1: verification
-        num_copy = self.get_num_copy()
         p = self.get_p()
         k = self.get_k()
         circ = self.get_circ()
         copy_k = circ.get_copy_k()
         z_tuple = self.get_random_vector(i)
+        num_copy = self.get_num_copy()
+        d = self.get_depth()
         # The verifier needs to get the poly evaluated at 0 and 1 cause they are the claimed value of the prover
         if TIME_INFO:
             poly_start_time = time.time()
@@ -262,10 +263,13 @@ class Verifier(Interactor):
                     i, poly_end_time - poly_start_time
                 )
             )
-        a1_last_layer = self.get_layer_i_sumcheck_random_elements(i)[0]
+        # a1_last_layer is only useful for the last layer. When it's not, the value of it doesn't matter.
+        # a1 and a2 is retrieved before the random element is processed. Therefore, the random elements goes like this: a1, b1, c1, a2. So from 0th to copy_k[i]-th is a1, and last num_copy[i] is a2.
+        a1_last_layer = self.get_layer_i_sumcheck_random_elements(i)[: copy_k[i]]
         a2_last_layer = self.get_layer_i_sumcheck_random_elements(i)[-num_copy[i] :]
-        if not i == self.get_depth() - 1:
-            self.process_SRE_for_parallelism(i, z_tuple[: self.get_num_copy()[i + 1]])
+        # For add layer, the copy label used to process random elements comes from random vector passed from the above layer. This is different from mult layer naive parallelism, where the copy is from the verifier's random challenges.
+        if not i == d - 1:
+            self.process_SRE_for_parallelism(i, z_tuple[: self.get_num_copy()[i]])
         else:
             self.process_SRE_for_parallelism(i, tuple(a2_last_layer))
         SRE_layer_i = self.get_layer_i_sumcheck_random_elements(i)
@@ -280,10 +284,15 @@ class Verifier(Interactor):
             add_mult_start_time = time.time()
         # Although random vector and random element are of length k[i] and 2*k[i+1] respectively, we only need to evaluate add and mult at their gate label.
         add_bstar_cstar = circ.eval_MLE_add(
-            i, RV_i[-copy_k[i] :] + bstar[-copy_k[i + 1] :] + cstar[-copy_k[i + 1] :]
+            i, RV_i[-copy_k[i] :] + bstar[num_copy[i] :] + cstar[num_copy[i] :]
         )
         mult_bstar_cstar = circ.eval_MLE_mult(
-            i, (a1_last_layer,) + bstar[num_copy[i] :] + cstar[num_copy[i] :]
+            i,
+            tuple(
+                a1_last_layer,
+            )
+            + bstar[num_copy[i] :]
+            + cstar[num_copy[i] :],
         )
         if TIME_INFO:
             add_mult_end_time = time.time()
@@ -299,7 +308,7 @@ class Verifier(Interactor):
             current_claimed_value_of_fi = (add_bstar_cstar * (vals[0] + vals[1])) % p
         else:
             current_claimed_value_of_fi = (
-                SU.chi(RV_i, tuple(a2_last_layer) + (a1_last_layer,), k[i], p)
+                SU.chi(RV_i, tuple(a2_last_layer) + tuple(a1_last_layer), k[i], p)
                 * (mult_bstar_cstar * (vals[0] * vals[1]))
                 % p
             )
