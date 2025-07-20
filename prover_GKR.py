@@ -8,7 +8,7 @@ Created on Mon Jul 18 20:58:15 2022
 
 
 from interactor_GKR import Interactor
-
+from commitment import *
 import sumcheck_util as SU
 import circuit
 
@@ -72,6 +72,7 @@ class Prover(Interactor):
         D_i = self.circ.get_W(i)
         # evaluate get_W(i) at the random vector r_i
         evaluation_at_random_vector = SU.DP_eval_MLE(D_i, r_i, k[i], p)
+        # TODO: Do we have to convert this to commitment?
         self.append_evaluations_RV(evaluation_at_random_vector)
 
     def sum_fi(self, i: int, s: int):
@@ -1262,16 +1263,17 @@ class Prover(Interactor):
         """
         In the naive_parallelism branch, this function is used throughout all of the layers in the circuit.
         """
-        d = self.get_depth()
+        # d = self.get_depth()
         k = self.get_k()
         num_copy = self.get_num_copy()
         copy_k = self.get_copy_k()
         RV_i = self.get_random_vector(layer)
         if step == 0:
-            new_evaluation = self.get_evaluation_of_RV(layer)
+            # new_evaluation is the commitment of the real value.
+            new_evaluation = commit(self.get_evaluation_of_RV(layer), 0, G, B)
             if DEBUG_INFO:
                 print(
-                    "The multi-linear extension of W_{} at {} is {}".format(
+                    "The commitment value of multi-linear extension of W_{} at {} is {}".format(
                         layer, RV_i, new_evaluation
                     )
                 )
@@ -1280,9 +1282,19 @@ class Prover(Interactor):
             self.current_beta_array = self.reusing_work_beta_initialize(
                 layer, self.get_random_vector(layer)
             )
+            # degree 3 poly. poly is a list of coefficients
             poly = self.sum_fi_parallel(layer, step)
-            self.append_sumcheck_polynomial(layer, poly)
-            return poly
+            # commitment_poly is a list of EC points.
+            commitment_poly = list(
+                commit_3_degree_poly(poly[0], poly[1], poly[2], 0, 0, 0, G, B)
+            )
+            # the original values are stored in the class, but commitment values are passed to verifier.
+            self.append_sumcheck_polynomial(
+                layer,
+                poly,
+            )
+            # self.append_sumcheck_polynomial(layer, poly)
+            return commitment_poly
         if step <= copy_k[layer] + 1:
             # update beta array
             self.reusing_work_beta_update(
@@ -1291,8 +1303,11 @@ class Prover(Interactor):
             )
             self.append_element_SRE(layer, random_element)
             poly = self.sum_fi_parallel(layer, step)
+            commitment_poly = list(
+                commit_3_degree_poly(poly[0], poly[1], poly[2], 0, 0, 0, G, B)
+            )
             self.append_sumcheck_polynomial(layer, poly)
-            return poly
+            return commitment_poly
         # when step == copy_k[layer] + 2 * (k[layer + 1] - num_copy[layer]) + 1, we are actually fixing a_2, but since we don't need to update the beta array, the code is the same as previous situations.
         if (
             copy_k[layer] + 1
@@ -1301,8 +1316,11 @@ class Prover(Interactor):
         ):
             self.append_element_SRE(layer, random_element)
             poly = self.sum_fi_parallel(layer, step)
+            commitment_poly = list(
+                commit_3_degree_poly(poly[0], poly[1], poly[2], 0, 0, 0, G, B)
+            )
             self.append_sumcheck_polynomial(layer, poly)
-            return poly
+            return commitment_poly
         if (
             copy_k[layer] + 2 * (k[layer + 1] - num_copy[layer]) + 1
             < step
@@ -1316,8 +1334,13 @@ class Prover(Interactor):
             )
             self.append_element_SRE(layer, random_element)
             poly = self.sum_fi_parallel(layer, step)
+            commitment_poly = list(
+                commit_4_degree_poly(
+                    poly[0], poly[1], poly[2], poly[3], 0, 0, 0, 0, G, B
+                )
+            )
             self.append_sumcheck_polynomial(layer, poly)
-            return poly
+            return commitment_poly
         assert (
             False
         ), f"step must be between 0 and {k[layer] + 2 * (k[layer + 1] - num_copy[layer + 1])}, but got {step}"
@@ -1367,7 +1390,9 @@ class Prover(Interactor):
             k[i + 1],
             p,
         )
-        return poly
+        gammas = [0] * len(poly)
+        commitment_poly = commit_n_degree_poly(poly, gammas, G, B)
+        return commitment_poly
 
     def send_final_Wd_evaluation(self):
         """

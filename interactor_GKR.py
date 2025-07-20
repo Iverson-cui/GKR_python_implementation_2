@@ -144,7 +144,7 @@ class Interactor:
         return lines[i]
 
     def append_evaluations_RV(self, val):
-        assert type(val) == int, "type of input is not an integer"
+        # assert type(val) == int, "type of input is not an integer"
         self.evaluations_of_random_vectors.append(val)
 
     def append_RV(self, vec):

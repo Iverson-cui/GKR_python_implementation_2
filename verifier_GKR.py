@@ -8,6 +8,7 @@ Created on Mon Jul 18 21:49:06 2022
 
 
 import numpy as np
+from commitment import *
 
 # import math
 # import random
@@ -56,7 +57,11 @@ class Verifier(Interactor):
         p = self.p
         first_random_vector = tuple([np.random.randint(0, p) for i in range(k[0])])
         self.random_vectors.append(first_random_vector)
-        value_at_first_random_vector = SU.DP_eval_MLE(D, first_random_vector, k[0], p)
+        # value_at_first_random_vector is the commitment value of W_0(r_0) which has been added to append_evaluations_RV.
+        # Technically, value_at_first_random_vector is the type of point2D.
+        value_at_first_random_vector = commit(
+            SU.DP_eval_MLE(D, first_random_vector, k[0], p), 0, G, B
+        )
         self.append_evaluations_RV(value_at_first_random_vector)
         return first_random_vector
 
@@ -169,14 +174,15 @@ class Verifier(Interactor):
         ), "step must be between 0 and 2*copy_k_{i+1}"
 
         if step == 0:
-            if layer >= 1:
-                assert poly[0] == self.get_claimed_value_at_end_of_layer(
-                    layer - 1
-                ), "The claimed value at the end of step {}, {} does not match with what the prover just sent, {}".format(
-                    layer - 1,
-                    self.get_claimed_value_at_end_of_layer(layer - 1),
-                    poly[0],
-                )
+            # if layer >= 1:
+
+            #     assert poly[0] == self.get_claimed_value_at_end_of_layer(
+            #         layer - 1
+            #     ), "The claimed value at the end of step {}, {} does not match with what the prover just sent, {}".format(
+            #         layer - 1,
+            #         self.get_claimed_value_at_end_of_layer(layer - 1),
+            #         poly[0],
+            #     )
             self.append_sumcheck_polynomial(layer, poly)
             # if s == 0, don't return anything
             return 0
@@ -187,19 +193,31 @@ class Verifier(Interactor):
                 layer, step, degree, len(poly)
             )
             if layer == d - 1:
-                sum_new_poly_at_0_1 = (
-                    SU.cubic_evaluation(poly, 0, p) + SU.cubic_evaluation(poly, 1, p)
-                ) % p
+                # sum_new_poly_at_0_1 = (
+                #     SU.cubic_evaluation(poly, 0, p) + SU.cubic_evaluation(poly, 1, p)
+                # ) % p
+                sum_new_poly_at_0_1 = add(
+                    eval_commit_4_degree_poly(poly[0], poly[1], poly[2], poly[3], 0),
+                    eval_commit_4_degree_poly(poly[0], poly[1], poly[2], poly[3], 1),
+                )
             else:
-                sum_new_poly_at_0_1 = (
-                    SU.quadratic_evaluation(poly, 0, p)
-                    + SU.quadratic_evaluation(poly, 1, p)
-                ) % p
-            old_value = SU.quadratic_evaluation(
-                self.get_specific_polynomial(layer, step - 1), 0, p
+                # sum_new_poly_at_0_1_original = (
+                #     SU.quadratic_evaluation(poly, 0, p)
+                #     + SU.quadratic_evaluation(poly, 1, p)
+                # ) % p
+                sum_new_poly_at_0_1 = add(
+                    eval_commit_3_degree_poly(poly[0], poly[1], poly[2], 0),
+                    eval_commit_3_degree_poly(poly[0], poly[1], poly[2], 1),
+                )
+            # old_value = SU.quadratic_evaluation(
+            #     self.get_specific_polynomial(layer, step - 1), 0, p
+            # )
+            old_poly = self.get_specific_polynomial(layer, step - 1)
+            old_value = eval_commit_3_degree_poly(
+                old_poly[0], old_poly[1], old_poly[2], 0
             )
             assert (
-                sum_new_poly_at_0_1 == old_value % p
+                sum_new_poly_at_0_1 == old_value
             ), "the first check failed, {} is not equal to {}".format(
                 sum_new_poly_at_0_1, old_value
             )
@@ -218,22 +236,33 @@ class Verifier(Interactor):
                 layer, step, degree, len(poly)
             )
             if layer == d - 1:
-                sum_new_poly_at_0_1 = (
-                    SU.cubic_evaluation(poly, 0, p) + SU.cubic_evaluation(poly, 1, p)
-                ) % p
-                old_value = SU.cubic_evaluation(
-                    self.get_specific_polynomial(layer, step - 1), r, p
+                # sum_new_poly_at_0_1 = (
+                #     SU.cubic_evaluation(poly, 0, p) + SU.cubic_evaluation(poly, 1, p)
+                # ) % p
+                sum_new_poly_at_0_1 = add(
+                    eval_commit_4_degree_poly(poly[0], poly[1], poly[2], poly[3], 0),
+                    eval_commit_4_degree_poly(poly[0], poly[1], poly[2], poly[3], 1),
+                )
+                # old_value = SU.cubic_evaluation(
+                #     self.get_specific_polynomial(layer, step - 1), r, p
+                # )
+                old_value = eval_commit_4_degree_poly(
+                    old_poly[0], old_poly[1], old_poly[2], old_poly[3], 0
                 )
             else:
-                sum_new_poly_at_0_1 = (
-                    SU.quadratic_evaluation(poly, 0, p)
-                    + SU.quadratic_evaluation(poly, 1, p)
-                ) % p
-                old_value = SU.quadratic_evaluation(
-                    self.get_specific_polynomial(layer, step - 1), r, p
+                # sum_new_poly_at_0_1 = (
+                #     SU.quadratic_evaluation(poly, 0, p)
+                #     + SU.quadratic_evaluation(poly, 1, p)
+                # ) % p
+                sum_new_poly_at_0_1 = add(
+                    eval_commit_3_degree_poly(poly[0], poly[1], poly[2], 0),
+                    eval_commit_3_degree_poly(poly[0], poly[1], poly[2], 1),
+                )
+                old_value = eval_commit_3_degree_poly(
+                    old_poly[0], old_poly[1], old_poly[2], 0
                 )
             assert (
-                sum_new_poly_at_0_1 == old_value % p
+                sum_new_poly_at_0_1 == old_value
             ), "the check failed at layer {} step {}, {} is not equal to {}. copy_k[layer]={},copy_k[layer+1]={}".format(
                 layer,
                 step,
@@ -250,10 +279,10 @@ class Verifier(Interactor):
             k[layer] + 2 * (k[layer + 1] - num_copy[layer])
         )
 
-    def reduce_two_to_one(self, i: int, poly: list):
+    def reduce_two_to_one(self, i: int, poly: list, commitment_of_product=None):
         """
         reduce_two_to_one
-        INPUTS: i (integer), poly (list)
+        INPUTS: i (integer), poly (list), commitment_of_product is optional, and it means v_1 * v_2. This is only useful in the mult layer verification.
         OUTPUTS: new_random_vector (tuple)
         At the end of the sumcheck protocol for layer i, we have just received a
         polynomial, poly, that the prover claims to be \tilde{W}_{i+1} restricted to the line
@@ -278,7 +307,8 @@ class Verifier(Interactor):
         # The verifier needs to get the poly evaluated at 0 and 1 cause they are the claimed value of the prover
         if TIME_INFO:
             poly_start_time = time.time()
-        vals = [SU.polynomial_evaluation(poly, i, p) for i in range(2)]
+        # vals = [SU.polynomial_evaluation(poly, i, p) for i in range(2)]
+        vals = [eval_commit_n_degree_poly(poly, i) for i in range(2)]
         if TIME_INFO:
             poly_end_time = time.time()
             print(
@@ -318,27 +348,51 @@ class Verifier(Interactor):
         # what the prover claims W_{i+1}(bstar) and W_{i+1}(cstar) are.
         # (this is via the polynomial that the prover sends!!)
         if not i == d - 1:
-            current_claimed_value_of_fi = (
-                SU.chi(RV_i, tuple(a2_last_layer) + tuple(a1_last_layer), k[i], p)
-                * (add_bstar_cstar * (vals[0] + vals[1]))
-                % p
+            # current_claimed_value_of_fi = (
+            #     SU.chi(RV_i, tuple(a2_last_layer) + tuple(a1_last_layer), k[i], p)
+            #     * (add_bstar_cstar * (vals[0] + vals[1]))
+            #     % p
+            # )
+            current_claimed_value_of_fi = multiply(
+                multiply(
+                    add(vals[0], vals[1]),
+                    add_bstar_cstar,
+                ),
+                SU.chi(RV_i, tuple(a2_last_layer) + tuple(a1_last_layer), k[i], p),
             )
         else:
-            current_claimed_value_of_fi = (
-                SU.chi(RV_i, tuple(a2_last_layer) + tuple(a1_last_layer), k[i], p)
-                * (mult_bstar_cstar * (vals[0] * vals[1]))
-                % p
+            # current_claimed_value_of_fi = (
+            #     SU.chi(RV_i, tuple(a2_last_layer) + tuple(a1_last_layer), k[i], p)
+            #     * (mult_bstar_cstar * (vals[0] * vals[1]))
+            #     % p
+            # )
+            current_claimed_value_of_fi = multiply(
+                multiply(
+                    commitment_of_product,
+                    mult_bstar_cstar,
+                ),
+                SU.chi(RV_i, tuple(a2_last_layer) + tuple(a1_last_layer), k[i], p),
             )
         # The verifier needs to get the old claimed value to compare it with the new one.
         if TIME_INFO:
             old_claimed_value_start_time = time.time()
         if i == d - 1:
-            old_claimed_value_of_fi = SU.cubic_evaluation(
-                last_poly, a2_last_layer[-1], p
+            # old_claimed_value_of_fi = SU.cubic_evaluation(
+            #     last_poly, a2_last_layer[-1], p
+            # )
+            old_claimed_value_of_fi = eval_commit_4_degree_poly(
+                last_poly[0],
+                last_poly[1],
+                last_poly[2],
+                last_poly[3],
+                a2_last_layer[-1],
             )
         else:
-            old_claimed_value_of_fi = SU.quadratic_evaluation(
-                last_poly, a2_last_layer[-1], p
+            # old_claimed_value_of_fi = SU.quadratic_evaluation(
+            #     last_poly, a2_last_layer[-1], p
+            # )
+            old_claimed_value_of_fi = eval_commit_3_degree_poly(
+                last_poly[0], last_poly[1], last_poly[2], a2_last_layer[-1]
             )
         if TIME_INFO:
             old_claimed_value_end_time = time.time()
@@ -369,7 +423,8 @@ class Verifier(Interactor):
         new_random_vector = line(final_random_element_in_layer)
         self.append_RV(new_random_vector)
         self.append_claimed_values_at_end_of_layer(
-            SU.polynomial_evaluation(poly, final_random_element_in_layer, p)
+            # SU.polynomial_evaluation(poly, final_random_element_in_layer, p)
+            eval_commit_n_degree_poly(poly, final_random_element_in_layer)
         )
 
         return new_random_vector

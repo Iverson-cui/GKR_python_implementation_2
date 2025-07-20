@@ -1,5 +1,5 @@
 from py_ecc.bn128 import G1, multiply, add, FQ
-from py_ecc.bn128 import curve_order as p
+from py_ecc.bn128 import curve_order as prime
 import random
 
 
@@ -7,7 +7,7 @@ def random_field_element():
     """
     Returns a random field element with field order p.
     """
-    return random.randint(0, p)
+    return random.randint(0, prime)
 
 
 # these EC points have unknown discrete logs:
@@ -58,11 +58,63 @@ def commit_3_degree_poly(f_0, f_1, f_2, gamma_0, gamma_1, gamma_2, G, B):
     return (C0, C1, C2)
 
 
+def commit_4_degree_poly(f_0, f_1, f_2, f_3, gamma_0, gamma_1, gamma_2, gamma_3, G, B):
+    """
+    # Create a Pedersen commitment for each coefficient
+    # Each commitment has the form: coefficient * G + blinding_factor * B
+    # This hides the coefficient while still allowing us to prove things about it
+    Returns the Pedersen commitments for three polynomial coefficients f_0, f_1, f_2.
+
+    Here, the degree 4 means there are 4 coefficients, not really of degree 4. It actually has DEGREE OF 3.
+
+    INPUTS:
+    - f_0, f_1, f_2: Coefficients of the polynomial f(x) = f_0 + f_1*x + f_2*x^2. They are all ints.
+    - gamma_0, gamma_1, gamma_2: Blinding factors for each coefficient. They are also ints.
+    - G: Generator point for the elliptic curve.
+    - B: Another point on the elliptic curve used for blinding.
+
+    OUTPUTS:
+    - C0, C1, C2: The Pedersen commitments for f_0, f_1, f_2 respectively.
+    Each C is a tuple representing an elliptic curve point (x, y).
+    """
+
+    C0 = commit(f_0, gamma_0, G, B)  # f_0 * G + gamma_0 * B
+    C1 = commit(f_1, gamma_1, G, B)  # f_1 * G + gamma_1 * B
+    C2 = commit(f_2, gamma_2, G, B)  # f_2 * G + gamma_2 * B
+    C3 = commit(f_3, gamma_3, G, B)  # f_3 * G + gamma_3 * B
+
+    return (C0, C1, C2, C3)
+
+
+def commit_n_degree_poly(coefficients, gammas, G, B):
+    """
+    Create Pedersen commitments for polynomial coefficients of any degree.
+
+    INPUTS:
+    - coefficients: List of polynomial coefficients [f_0, f_1, ..., f_n]
+    - gammas: List of blinding factors [gamma_0, gamma_1, ..., gamma_n]
+    - G: Generator point for the elliptic curve
+    - B: Another point on the elliptic curve used for blinding
+
+    OUTPUTS:
+    - Tuple of Pedersen commitments (C0, C1, ..., Cn)
+    """
+    if len(coefficients) != len(gammas):
+        raise ValueError("Coefficients and gammas lists must have the same length")
+
+    commitments = []
+    for i in range(len(coefficients)):
+        C_i = commit(coefficients[i], gammas[i], G, B)
+        commitments.append(C_i)
+
+    return tuple(commitments)
+
+
 def evaluate(f_0, f_1, f_2, u):
     """
     This function returns the evaluation of the polynomial f at point u.
     """
-    return (f_0 + f_1 * u + f_2 * u**2) % p
+    return (f_0 + f_1 * u + f_2 * u**2) % prime
 
 
 def prove(gamma_0, gamma_1, gamma_2, u):
@@ -74,8 +126,89 @@ def prove(gamma_0, gamma_1, gamma_2, u):
     This function returns the pi, proof that the prover gives to the verifier to help him open the commitment.
     """
 
-    pi = (gamma_0 + gamma_1 * u + gamma_2 * u**2) % p
+    pi = (gamma_0 + gamma_1 * u + gamma_2 * u**2) % prime
     return pi
+
+
+def eval_commit_3_degree_poly(C0, C1, C2, u):
+    """
+    This function evaluates the commitment value of a commitment poly evaluated at u.
+
+    INPUTS:
+    - C0, C1, C2: The Pedersen commitments for f_0, f_1, f_2 respectively.
+    - u: The point at which the polynomial is evaluated. It is an int.
+
+    OUTPUTS:
+    - C_u: The commitment value of the polynomial evaluated at u.
+    """
+    u_squared = (u * u) % 10007
+
+    # C1 * u
+    C1_times_u = multiply(C1, u)
+    # C2 * u^2
+    C2_times_u_squared = multiply(C2, u_squared)
+
+    # C(u) = C0 + u*C1 + u^2*C2
+    C_u = add(add(C0, C1_times_u), C2_times_u_squared)
+
+    return C_u
+
+
+def eval_commit_4_degree_poly(C0, C1, C2, C3, u):
+    """
+    This function evaluates the commitment value of a commitment poly evaluated at u.
+
+    INPUTS:
+    - C0, C1, C2, C3: The Pedersen commitments for f_0, f_1, f_2, f_3 respectively.
+    - u: The point at which the polynomial is evaluated. It is an int.
+
+    OUTPUTS:
+    - C_u: The commitment value of the polynomial evaluated at u.
+    """
+    u_squared = (u * u) % 10007
+    u_cubed = (u * u_squared) % 10007
+
+    # C1 * u
+    C1_times_u = multiply(C1, u)
+    # C2 * u^2
+    C2_times_u_squared = multiply(C2, u_squared)
+    # C3 * u^3
+    C3_times_u_cubed = multiply(C3, u_cubed)
+    # C(u) = C0 + u*C1 + u^2*C2 + u^3*C3
+    C_u = add(add(add(C0, C1_times_u), C2_times_u_squared), C3_times_u_cubed)
+
+    return C_u
+
+
+def eval_commit_n_degree_poly(commitments, u):
+    """
+    This function evaluates the commitment value of a commitment polynomial evaluated at u.
+
+    INPUTS:
+    - commitments: List or tuple of Pedersen commitments [C0, C1, C2, ..., Cn]
+    - u: The point at which the polynomial is evaluated. It is an int.
+
+    OUTPUTS:
+    - C_u: The commitment value of the polynomial evaluated at u.
+    """
+    if len(commitments) == 0:
+        raise ValueError("Commitments list cannot be empty")
+
+    # Start with the constant term C0
+    C_u = commitments[0]
+
+    # Compute powers of u and add each term
+    u_power = u % prime  # u^1
+    for i in range(1, len(commitments)):
+        # Add C_i * u^i to the result
+        C_i_times_u_power = multiply(commitments[i], u_power)
+        C_u = add(C_u, C_i_times_u_power)
+
+        # Update u_power for next iteration: u^i -> u^(i+1)
+        if i < len(commitments) - 1:  # Don't compute unnecessary power
+            u_power = (u_power * u) % prime
+
+    return C_u
 
 
 def verify(C0, C1, C2, G, B, f_u, pi, u):
@@ -95,17 +228,8 @@ def verify(C0, C1, C2, G, B, f_u, pi, u):
 
     If this function returns True, this means that the the poly evaluated at u is f_u.
     """
-
-    # First, compute C(u) = C0 + u*C1 + u^2*C2
-    u_squared = (u * u) % p
-
-    # C1 * u
-    C1_times_u = multiply(C1, u)
-    # C2 * u^2
-    C2_times_u_squared = multiply(C2, u_squared)
-
     # C(u) = C0 + u*C1 + u^2*C2
-    C_u = add(add(C0, C1_times_u), C2_times_u_squared)
+    C_u = eval_commit_3_degree_poly(C0, C1, C2, u)
 
     # Now compute what C(u) should equal: f_u*G + pi*B
     expected = add(multiply(G, f_u), multiply(B, pi))
@@ -148,9 +272,24 @@ def verify(C0, C1, C2, G, B, f_u, pi, u):
 # # print(G1)
 
 
-original_value = 5
-a = commit(original_value, 0, G, B)
-C0, C1, C2 = commit_3_degree_poly(2, 2, 1, 0, 0, 0, G, B)
-value_commitment = evaluate(2, 2, 1, 1)
-print(C0, C1, C2)
-print(verify(C0, C1, C2, G, B, value_commitment, 0, 1))
+poly_original = [1, 2, 3]
+poly_commitment = commit_3_degree_poly(
+    poly_original[0], poly_original[1], poly_original[2], 0, 0, 0, G, B
+)
+after_commitment = add(
+    eval_commit_3_degree_poly(
+        poly_commitment[0], poly_commitment[1], poly_commitment[2], 1
+    ),
+    eval_commit_3_degree_poly(
+        poly_commitment[0], poly_commitment[1], poly_commitment[2], 0
+    ),
+)
+before_commitment = add(multiply(poly_commitment[0], 2), poly_commitment[1])
+real_value = commit(
+    evaluate(poly_original[0], poly_original[1], poly_original[2], 1)
+    + evaluate(poly_original[0], poly_original[1], poly_original[2], 0),
+    0,
+    G,
+    B,
+)
+assert after_commitment == real_value, "Commitment evaluation failed"

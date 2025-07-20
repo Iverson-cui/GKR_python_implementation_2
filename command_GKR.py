@@ -7,6 +7,7 @@ Created on Mon Jul 18 21:38:43 2022
 """
 
 import os
+from commitment import *
 
 
 # import numpy as np
@@ -105,6 +106,7 @@ def execute(C):
                 )
             if TIME_INFO:
                 partial_sumcheck_parallel_start_time = time.time()
+            # prover_msg is a list of EC points.
             prover_msg = prover_inst.partial_sumcheck_parallel(i, s, r)
             if TIME_INFO:
                 partial_sumcheck_parallel_end_time = time.time()
@@ -135,6 +137,8 @@ def execute(C):
                     )
         # W_iplus1_with_line is what the prover claims \tilde{W}_i restricted to the line is.
         W_iplus1_with_line = prover_inst.send_Wi_on_line(i, r)
+        # TODO: implement this function
+        commitment_of_product = prover_inst.product_commitment()
         if DEBUG_INFO:
             print(
                 "The univariate polynomial that the prover sends at the end of step {} on the line is: {}".format(
@@ -151,7 +155,9 @@ def execute(C):
 
         if TIME_INFO:
             reduce_start_time = time.time()
-        new_random_vector = verifier_inst.reduce_two_to_one(i, W_iplus1_with_line)
+        new_random_vector = verifier_inst.reduce_two_to_one(
+            i, W_iplus1_with_line, commitment_of_product=commitment_of_product
+        )
         if TIME_INFO:
             reduce_end_time = time.time()
             print(
