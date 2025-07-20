@@ -55,7 +55,6 @@ def execute(C):
         print("Initialization time:", initialization_time - start_time)
     # prover_output_communication is the first message the prover sends.
     # This is a dictionary of the output values, in dictionary form: {0,1}^{k[0]}->F_p
-    # In this step, P tells V the claimed output of the circuit.
     prover_output_communication = prover_inst.output_layer_communication()
     # In this step, verifier accept the claimed output and returns a random challenge.
     # In more detail, Verifier runs ``output layer communication'' with input the dictionary that prover just sent. returns a random vector r_0 in F_p^{k[0]}

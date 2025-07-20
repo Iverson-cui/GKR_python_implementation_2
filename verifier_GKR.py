@@ -56,7 +56,7 @@ class Verifier(Interactor):
         p = self.p
         first_random_vector = tuple([np.random.randint(0, p) for i in range(k[0])])
         self.random_vectors.append(first_random_vector)
-        value_at_first_random_vector = SU.eval_MLE(D, first_random_vector, k[0], p)
+        value_at_first_random_vector = SU.DP_eval_MLE(D, first_random_vector, k[0], p)
         self.append_evaluations_RV(value_at_first_random_vector)
         return first_random_vector
 
