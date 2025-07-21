@@ -295,24 +295,83 @@ real_value = commit(
 assert after_commitment == real_value, "Commitment evaluation failed"
 
 
-x = 3
-y = 4
-X = commit(x, 0, G, B)
-Y = commit(y, 0, G, B)
-Z = commit(x * y, 0, G, B)
-b = [random.randint(1, prime) for _ in range(5)]
-alpha = commit(b[0], b[1], G, B)
-beta = commit(b[2], b[3], G, B)
-delta = commit(b[2], b[4], X, B)
-c = random.randint(1, prime)
-z = [0] * 5
-z[0] = (b[0] + c * x) % prime
-z[1] = b[1]
-z[2] = (b[2] + c * y) % prime
-z[3] = b[3]
-z[4] = b[4]
+def proof_of_product_step_1(x, y, rx, ry, rz, G, B):
+    """
+    This function is used to create a proof of product commitment.
+    It returns the commitments and the values that will be used in the verification step.
+    """
+    X = commit(x, rx, G, B)
+    Y = commit(y, ry, G, B)
+    Z = commit(x * y, rz, G, B)
 
-assert add(alpha, multiply(X, c)) == add(multiply(G, z[0]), multiply(B, z[1]))
-assert add(beta, multiply(Y, c)) == add(multiply(G, z[2]), multiply(B, z[3]))
-assert add(delta, multiply(Z, c)) == add(multiply(X, z[2]), multiply(B, z[4]))
-print("Proof of product commitment is valid!")
+    b = [random.randint(1, prime) for _ in range(5)]
+    alpha = commit(b[0], b[1], G, B)
+    beta = commit(b[2], b[3], G, B)
+    delta = commit(b[2], b[4], X, B)
+
+    return (X, Y, Z, alpha, beta, delta, *b)
+
+
+def proof_of_product_step_2(x, y, b: list, rx, ry, rz, c):
+    z = [0] * 5
+    z[0] = (b[0] + c * x) % prime
+    z[1] = (b[1] + c * rx) % prime
+    z[2] = (b[2] + c * y) % prime
+    z[3] = (b[3] + c * ry) % prime
+    z[4] = (b[4] + c * (rz - rx * y)) % prime
+    return z
+
+
+def proof_of_product_verification(X, Y, Z, alpha, beta, delta, z, c, G, B):
+    """
+    This function verifies the proof of product commitment.
+    It checks if the commitments and the values match the expected values.
+    """
+    assert add(alpha, multiply(X, c)) == add(multiply(G, z[0]), multiply(B, z[1]))
+    assert add(beta, multiply(Y, c)) == add(multiply(G, z[2]), multiply(B, z[3]))
+    assert add(delta, multiply(Z, c)) == add(multiply(X, z[2]), multiply(B, z[4]))
+    print("Proof of product commitment is valid!")
+
+
+temp_lst = proof_of_product_step_1(3, 4, 0, 0, 0, G, B)
+c = random.randint(1, prime)
+z = proof_of_product_step_2(3, 4, temp_lst[6:], 0, 0, 0, c)
+proof_of_product_verification(
+    temp_lst[0],
+    temp_lst[1],
+    temp_lst[2],
+    temp_lst[3],
+    temp_lst[4],
+    temp_lst[5],
+    z,
+    c,
+    G,
+    B,
+)
+
+# # Below are what the prover needs to prepare in step 1.
+# # X, Y, Z, alpha, beta, delta are known to the verifier.
+# x = 3
+# y = 4
+# X = commit(x, 0, G, B)
+# Y = commit(y, 0, G, B)
+# Z = commit(x * y, 0, G, B)
+# b = [random.randint(1, prime) for _ in range(5)]
+# alpha = commit(b[0], b[1], G, B)
+# beta = commit(b[2], b[3], G, B)
+# delta = commit(b[2], b[4], X, B)
+# # Verifier returns c, random challenge.
+# c = random.randint(1, prime)
+# # Prover sends these 5 values of z to Verifier. These 5 values are all known to the verifier.
+# z = [0] * 5
+# z[0] = (b[0] + c * x) % prime
+# z[1] = b[1]
+# z[2] = (b[2] + c * y) % prime
+# z[3] = b[3]
+# z[4] = b[4]
+
+# # Below are checks performed by the verifier.
+# assert add(alpha, multiply(X, c)) == add(multiply(G, z[0]), multiply(B, z[1]))
+# assert add(beta, multiply(Y, c)) == add(multiply(G, z[2]), multiply(B, z[3]))
+# assert add(delta, multiply(Z, c)) == add(multiply(X, z[2]), multiply(B, z[4]))
+# print("Proof of product commitment is valid!")
