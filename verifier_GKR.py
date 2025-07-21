@@ -8,7 +8,7 @@ Created on Mon Jul 18 21:49:06 2022
 
 
 import numpy as np
-from zmpy2 import random_state, mpz_random
+from gmpy2 import random_state, mpz_random
 from commitment import *
 
 # import math
