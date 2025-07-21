@@ -293,3 +293,26 @@ real_value = commit(
     B,
 )
 assert after_commitment == real_value, "Commitment evaluation failed"
+
+
+x = 3
+y = 4
+X = commit(x, 0, G, B)
+Y = commit(y, 0, G, B)
+Z = commit(x * y, 0, G, B)
+b = [random.randint(1, prime) for _ in range(5)]
+alpha = commit(b[0], b[1], G, B)
+beta = commit(b[2], b[3], G, B)
+delta = commit(b[2], b[4], X, B)
+c = random.randint(1, prime)
+z = [0] * 5
+z[0] = (b[0] + c * x) % prime
+z[1] = b[1]
+z[2] = (b[2] + c * y) % prime
+z[3] = b[3]
+z[4] = b[4]
+
+assert add(alpha, multiply(X, c)) == add(multiply(G, z[0]), multiply(B, z[1]))
+assert add(beta, multiply(Y, c)) == add(multiply(G, z[2]), multiply(B, z[3]))
+assert add(delta, multiply(Z, c)) == add(multiply(X, z[2]), multiply(B, z[4]))
+print("Proof of product commitment is valid!")
