@@ -1,4 +1,4 @@
-from py_ecc.bn128 import G1, multiply, add, FQ
+from py_ecc.bn128 import multiply, add, FQ
 from py_ecc.bn128 import curve_order as prime
 import random
 
@@ -379,3 +379,7 @@ proof_of_product_verification(
 # assert add(beta, multiply(Y, c)) == add(multiply(G, z[2]), multiply(B, z[3]))
 # assert add(delta, multiply(Z, c)) == add(multiply(X, z[2]), multiply(B, z[4]))
 # print("Proof of product commitment is valid!")
+
+int_prime = int(prime)
+print(int_prime)
+print(type(int_prime))

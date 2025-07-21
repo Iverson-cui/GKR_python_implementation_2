@@ -6,9 +6,12 @@ Created on Mon Jul 18 21:38:43 2022
 @author: raju
 """
 
+from gmpy2 import mpz, random_state, mpz_random
 import os
 from commitment import *
 
+
+rand_state = random_state(1)
 
 # import numpy as np
 # import math
@@ -142,7 +145,7 @@ def execute(C):
                 value_at_b, value_at_c, 0, 0, 0, G, B
             )
             # TODO: prime or p?
-            c = random.randint(1, prime)
+            c = mpz_random(rand_state, int(prime))
             z = proof_of_product_step_2(
                 value_at_b, value_at_c, temp_lst_mult_layer[6:], 0, 0, 0, c
             )
@@ -224,7 +227,7 @@ def execute(C):
 
 # C = [circuit.createCircuit("circuitdata-{}.csv".format(i), 10007) for i in range(1, 5)]
 # Deep_C = circuit.createCircuit("deep_circuit-1.csv", 10007)
-test_circuit = circuit.createCircuit(data_dir, [2, 2, 3, 4, 5, 6, 7, 8], 10007)
+test_circuit = circuit.createCircuit(data_dir, [2, 2, 3, 4, 5, 6, 7, 8], int(prime))
 execution_time = timeit.timeit(lambda: execute(test_circuit), number=3)
 print(
     "\033[33mExecution time for test_circuit: {}\033[0m seconds".format(
