@@ -297,7 +297,7 @@ assert after_commitment == real_value, "Commitment evaluation failed"
 
 def proof_of_product_step_1(x, y, rx, ry, rz, G, B):
     """
-    This function is used to create a proof of product commitment.
+    This function is used by the prover for the first step of creating a proof of product commitment.
     It returns the commitments and the values that will be used in the verification step.
     """
     X = commit(x, rx, G, B)
@@ -313,6 +313,9 @@ def proof_of_product_step_1(x, y, rx, ry, rz, G, B):
 
 
 def proof_of_product_step_2(x, y, b: list, rx, ry, rz, c):
+    """
+    This function is used by the prover for the second step of creating a proof of product commitment.
+    """
     z = [0] * 5
     z[0] = (b[0] + c * x) % prime
     z[1] = (b[1] + c * rx) % prime
@@ -326,6 +329,7 @@ def proof_of_product_verification(X, Y, Z, alpha, beta, delta, z, c, G, B):
     """
     This function verifies the proof of product commitment.
     It checks if the commitments and the values match the expected values.
+    This function is called by the verifier.
     """
     assert add(alpha, multiply(X, c)) == add(multiply(G, z[0]), multiply(B, z[1]))
     assert add(beta, multiply(Y, c)) == add(multiply(G, z[2]), multiply(B, z[3]))

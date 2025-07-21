@@ -136,9 +136,30 @@ def execute(C):
                         )
                     )
         # W_iplus1_with_line is what the prover claims \tilde{W}_i restricted to the line is.
-        W_iplus1_with_line = prover_inst.send_Wi_on_line(i, r)
-        # TODO: implement this function
-        commitment_of_product = prover_inst.product_commitment()
+        W_iplus1_with_line, value_at_b, value_at_c = prover_inst.send_Wi_on_line(i, r)
+        if i == d - 1:
+            temp_lst_mult_layer = proof_of_product_step_1(
+                value_at_b, value_at_c, 0, 0, 0, G, B
+            )
+            # TODO: prime or p?
+            c = random.randint(1, prime)
+            z = proof_of_product_step_2(
+                value_at_b, value_at_c, temp_lst_mult_layer[6:], 0, 0, 0, c
+            )
+            proof_of_product_verification(
+                temp_lst_mult_layer[0],
+                temp_lst_mult_layer[1],
+                temp_lst_mult_layer[2],
+                temp_lst_mult_layer[3],
+                temp_lst_mult_layer[4],
+                temp_lst_mult_layer[5],
+                z,
+                c,
+                G,
+                B,
+            )
+            # temp_lst_mult_layer[2] is Z, the commitment of the product.
+            commitment_of_product = temp_lst_mult_layer[2]
         if DEBUG_INFO:
             print(
                 "The univariate polynomial that the prover sends at the end of step {} on the line is: {}".format(
@@ -155,9 +176,13 @@ def execute(C):
 
         if TIME_INFO:
             reduce_start_time = time.time()
-        new_random_vector = verifier_inst.reduce_two_to_one(
-            i, W_iplus1_with_line, commitment_of_product=commitment_of_product
-        )
+
+        if i == d - 1:
+            new_random_vector = verifier_inst.reduce_two_to_one(
+                i, W_iplus1_with_line, commitment_of_product=commitment_of_product
+            )
+        else:
+            new_random_vector = verifier_inst.reduce_two_to_one(i, W_iplus1_with_line)
         if TIME_INFO:
             reduce_end_time = time.time()
             print(

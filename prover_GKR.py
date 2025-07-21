@@ -1377,7 +1377,7 @@ class Prover(Interactor):
 
         self.process_SRE_for_parallelism(i, tuple(a2_last_layer))
 
-        # line is a function taking input an integer.
+        # line is a function taking as input an integer. This line is evaluated at b with input 0 and c with input 1.
         line = self.compute_line(i)
         self.append_line(line)
         W_iplus1 = self.circ.get_W(i + 1)
@@ -1390,9 +1390,12 @@ class Prover(Interactor):
             k[i + 1],
             p,
         )
+        value_at_b = SU.polynomial_evaluation(poly, 0, p)
+        value_at_c = SU.polynomial_evaluation(poly, 1, p)
+        # Commit and send back the poly.
         gammas = [0] * len(poly)
         commitment_poly = commit_n_degree_poly(poly, gammas, G, B)
-        return commitment_poly
+        return commitment_poly, value_at_b, value_at_c
 
     def send_final_Wd_evaluation(self):
         """

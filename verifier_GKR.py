@@ -282,7 +282,8 @@ class Verifier(Interactor):
     def reduce_two_to_one(self, i: int, poly: list, commitment_of_product=None):
         """
         reduce_two_to_one
-        INPUTS: i (integer), poly (list), commitment_of_product is optional, and it means v_1 * v_2. This is only useful in the mult layer verification.
+        INPUTS: i (integer), poly (list), commitment_of_product is optional, and it means v_1 * v_2. This is only useful in the mult layer verification. Commitment of product is the commitment of v1 * v2.
+
         OUTPUTS: new_random_vector (tuple)
         At the end of the sumcheck protocol for layer i, we have just received a
         polynomial, poly, that the prover claims to be \tilde{W}_{i+1} restricted to the line
@@ -482,8 +483,12 @@ class Verifier(Interactor):
         RV_d = tuple(self.get_random_vector(d))
         last_claimed_value = self.get_claimed_value_at_end_of_layer(d - 1)
         # We can now evaluate the MLE at the random vector since we know the input value.
-        actual_value_at_RV = SU.eval_MLE(Wd, RV_d, k[d], p)
-        assert last_claimed_value == actual_value_at_RV, "{} is not equal to {}".format(
-            last_claimed_value, actual_value_at_RV
+        actual_value_at_RV = SU.DP_eval_MLE(Wd, RV_d, k[d], p)
+        # TODO: Last layer logic needs to be fine tuned.
+        commitment_of_actual_value_at_RV = commit(actual_value_at_RV, 0, G, B)
+        assert (
+            last_claimed_value == commitment_of_actual_value_at_RV
+        ), "{} is not equal to {}".format(
+            last_claimed_value, commitment_of_actual_value_at_RV
         )
         return True
