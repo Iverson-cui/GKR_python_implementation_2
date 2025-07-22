@@ -337,21 +337,21 @@ def proof_of_product_verification(X, Y, Z, alpha, beta, delta, z, c, G, B):
     print("Proof of product commitment is valid!")
 
 
-temp_lst = proof_of_product_step_1(3, 4, 0, 0, 0, G, B)
-c = random.randint(1, prime)
-z = proof_of_product_step_2(3, 4, temp_lst[6:], 0, 0, 0, c)
-proof_of_product_verification(
-    temp_lst[0],
-    temp_lst[1],
-    temp_lst[2],
-    temp_lst[3],
-    temp_lst[4],
-    temp_lst[5],
-    z,
-    c,
-    G,
-    B,
-)
+# temp_lst = proof_of_product_step_1(3, 4, 0, 0, 0, G, B)
+# c = random.randint(1, prime)
+# z = proof_of_product_step_2(3, 4, temp_lst[6:], 0, 0, 0, c)
+# proof_of_product_verification(
+#     temp_lst[0],
+#     temp_lst[1],
+#     temp_lst[2],
+#     temp_lst[3],
+#     temp_lst[4],
+#     temp_lst[5],
+#     z,
+#     c,
+#     G,
+#     B,
+# )
 
 # # Below are what the prover needs to prepare in step 1.
 # # X, Y, Z, alpha, beta, delta are known to the verifier.
