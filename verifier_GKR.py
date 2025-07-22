@@ -313,7 +313,8 @@ class Verifier(Interactor):
         if TIME_INFO:
             poly_start_time = time.time()
         # vals = [SU.polynomial_evaluation(poly, i, p) for i in range(2)]
-        vals = [eval_commit_n_degree_poly(poly, i) for i in range(2)]
+        # The reason why we use poly[::-1] is that THE POLY IS IN REVERSED ORDER.
+        vals = [eval_commit_n_degree_poly(poly[::-1], i) for i in range(2)]
         if TIME_INFO:
             poly_end_time = time.time()
             print(
