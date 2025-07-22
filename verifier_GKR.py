@@ -251,7 +251,7 @@ class Verifier(Interactor):
                 #     self.get_specific_polynomial(layer, step - 1), r, p
                 # )
                 old_value = eval_commit_4_degree_poly(
-                    old_poly[0], old_poly[1], old_poly[2], old_poly[3], 0
+                    old_poly[0], old_poly[1], old_poly[2], old_poly[3], r
                 )
             else:
                 # sum_new_poly_at_0_1 = (

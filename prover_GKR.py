@@ -1284,9 +1284,16 @@ class Prover(Interactor):
             # degree 3 poly. poly is a list of coefficients
             poly = self.sum_fi_parallel(layer, step)
             # commitment_poly is a list of EC points.
-            commitment_poly = list(
-                commit_3_degree_poly(poly[0], poly[1], poly[2], 0, 0, 0, G, B)
-            )
+            if layer == self.get_depth() - 1:
+                commitment_poly = list(
+                    commit_4_degree_poly(
+                        poly[0], poly[1], poly[2], poly[3], 0, 0, 0, 0, G, B
+                    )
+                )
+            else:
+                commitment_poly = list(
+                    commit_3_degree_poly(poly[0], poly[1], poly[2], 0, 0, 0, G, B)
+                )
             # the original values are stored in the class, but commitment values are passed to verifier.
             self.append_sumcheck_polynomial(
                 layer,
@@ -1302,9 +1309,16 @@ class Prover(Interactor):
             )
             self.append_element_SRE(layer, random_element)
             poly = self.sum_fi_parallel(layer, step)
-            commitment_poly = list(
-                commit_3_degree_poly(poly[0], poly[1], poly[2], 0, 0, 0, G, B)
-            )
+            if layer == self.get_depth() - 1:
+                commitment_poly = list(
+                    commit_4_degree_poly(
+                        poly[0], poly[1], poly[2], poly[3], 0, 0, 0, 0, G, B
+                    )
+                )
+            else:
+                commitment_poly = list(
+                    commit_3_degree_poly(poly[0], poly[1], poly[2], 0, 0, 0, G, B)
+                )
             self.append_sumcheck_polynomial(layer, poly)
             return commitment_poly
         # when step == copy_k[layer] + 2 * (k[layer + 1] - num_copy[layer]) + 1, we are actually fixing a_2, but since we don't need to update the beta array, the code is the same as previous situations.
@@ -1315,9 +1329,16 @@ class Prover(Interactor):
         ):
             self.append_element_SRE(layer, random_element)
             poly = self.sum_fi_parallel(layer, step)
-            commitment_poly = list(
-                commit_3_degree_poly(poly[0], poly[1], poly[2], 0, 0, 0, G, B)
-            )
+            if layer == self.get_depth() - 1:
+                commitment_poly = list(
+                    commit_4_degree_poly(
+                        poly[0], poly[1], poly[2], poly[3], 0, 0, 0, 0, G, B
+                    )
+                )
+            else:
+                commitment_poly = list(
+                    commit_3_degree_poly(poly[0], poly[1], poly[2], 0, 0, 0, G, B)
+                )
             self.append_sumcheck_polynomial(layer, poly)
             return commitment_poly
         if (
