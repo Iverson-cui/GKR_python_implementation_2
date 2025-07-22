@@ -72,7 +72,6 @@ class Prover(Interactor):
         D_i = self.circ.get_W(i)
         # evaluate get_W(i) at the random vector r_i
         evaluation_at_random_vector = SU.DP_eval_MLE(D_i, r_i, k[i], p)
-        # TODO: Do we have to convert this to commitment?
         self.append_evaluations_RV(evaluation_at_random_vector)
 
     def sum_fi(self, i: int, s: int):

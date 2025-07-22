@@ -1,4 +1,4 @@
-from py_ecc.bn128 import multiply, add, FQ
+from py_ecc.bn128 import multiply, add, FQ, eq
 from py_ecc.bn128 import curve_order as prime
 import random
 

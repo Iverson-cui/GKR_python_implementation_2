@@ -406,8 +406,8 @@ class Verifier(Interactor):
                     i, old_claimed_value_end_time - old_claimed_value_start_time
                 )
             )
-        assert (
-            current_claimed_value_of_fi == old_claimed_value_of_fi
+        assert eq(
+            current_claimed_value_of_fi, old_claimed_value_of_fi
         ), "The first check at the end of sumcheck for layer {} failed: there is an imcompatibility between the last polynomial and the claimed values of \tilde W_i+1(bstar) and \tilde W_i+1(cstar) {}!={}".format(
             i, current_claimed_value_of_fi, old_claimed_value_of_fi
         )
