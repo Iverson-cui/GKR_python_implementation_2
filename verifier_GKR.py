@@ -8,6 +8,8 @@ Created on Mon Jul 18 21:49:06 2022
 
 
 import numpy as np
+from gmpy2 import random_state, mpz_random
+from commitment import *
 
 # import math
 # import random
@@ -20,6 +22,8 @@ from interactor_GKR import Interactor
 
 DEBUG_INFO = False
 TIME_INFO = True
+
+rand_state = random_state(12345)  # Using 12345 as seed
 
 
 class Verifier(Interactor):
@@ -54,9 +58,13 @@ class Verifier(Interactor):
         k = self.circ.get_k()  # k is a list of the log (base 2) of number of gates
         # in each layer.
         p = self.p
-        first_random_vector = tuple([np.random.randint(1, p) for i in range(k[0])])
+        first_random_vector = tuple([mpz_random(rand_state, p) for i in range(k[0])])
         self.random_vectors.append(first_random_vector)
-        value_at_first_random_vector = SU.eval_MLE(D, first_random_vector, k[0], p)
+        # value_at_first_random_vector is the commitment value of W_0(r_0) which has been added to append_evaluations_RV.
+        # Technically, value_at_first_random_vector is the type of point2D.
+        value_at_first_random_vector = commit(
+            SU.DP_eval_MLE(D, first_random_vector, k[0], p), 0, G, B
+        )
         self.append_evaluations_RV(value_at_first_random_vector)
         return first_random_vector
 
@@ -99,36 +107,38 @@ class Verifier(Interactor):
             return 0
         elif s == 1:
             # first, check compatibility of the 0th and first poly.
-            sum_new_poly_at_0_1 = (
-                SU.quadratic_evaluation(poly, 0, p)
-                + SU.quadratic_evaluation(poly, 1, p)
-            ) % p
-            old_value = SU.quadratic_evaluation(
-                self.get_specific_polynomial(i, s - 1), 0, p
+            sum_new_poly_at_0_1 = add(
+                eval_commit_3_degree_poly(poly[0], poly[1], poly[2], 0, p),
+                eval_commit_3_degree_poly(poly[0], poly[1], poly[2], 1, p),
+            )
+            old_poly = self.get_specific_polynomial(i, s - 1)
+            old_value = eval_commit_3_degree_poly(
+                old_poly[0], old_poly[1], old_poly[2], 0, p
             )
             assert (
-                sum_new_poly_at_0_1 == old_value % p
+                sum_new_poly_at_0_1 == old_value
             ), "the first check failed, {} is not equal to {}".format(
                 sum_new_poly_at_0_1, old_value
             )
             #            print("layer {} step 1 succeeded!".format(i))
             # Now the verification passes, verifier generate random challenges.
             self.append_sumcheck_polynomial(i, poly)
-            new_random_element = np.random.randint(1, p)
+            new_random_element = mpz_random(rand_state, p)
             self.append_element_SRE(i, new_random_element)
             return new_random_element
         elif 1 < s <= k[i + 1] - num_copy[i]:
             # The reason to separate out the case s == 1 is that, in each round of sumcheck we need to compare MLE at 0 + MLE at 1 = last round value. Last round value is calculated when used. This means we have to obtain the random element and poly of last round every time. When s=1, there is no last round random element, and poly is just a value.
             r = self.get_sumcheck_random_element(i, s - 1)
-            sum_new_poly_at_0_1 = (
-                SU.quadratic_evaluation(poly, 0, p)
-                + SU.quadratic_evaluation(poly, 1, p)
-            ) % p
-            old_value = SU.quadratic_evaluation(
-                self.get_specific_polynomial(i, s - 1), r, p
+            sum_new_poly_at_0_1 = add(
+                eval_commit_3_degree_poly(poly[0], poly[1], poly[2], 0, p),
+                eval_commit_3_degree_poly(poly[0], poly[1], poly[2], 1, p),
+            )
+            old_poly = self.get_specific_polynomial(i, s - 1)
+            old_value = eval_commit_3_degree_poly(
+                old_poly[0], old_poly[1], old_poly[2], r, p
             )
             assert (
-                sum_new_poly_at_0_1 == old_value % p
+                sum_new_poly_at_0_1 == old_value
             ), "the check failed at layer {} step {}, {} is not equal to {}. copy_k[i]={},copy_k[i+1]={}".format(
                 i, s, sum_new_poly_at_0_1, old_value, copy_k[i], copy_k[i + 1]
             )
@@ -137,7 +147,7 @@ class Verifier(Interactor):
 
             # first, append the polynomial that has passed the verification to the list of polynomials.
             self.append_sumcheck_polynomial(i, poly)
-            new_random_element = np.random.randint(1, p)
+            new_random_element = mpz_random(rand_state, p)
             # Then append the random challenge of the last variable to the SRE list.
             self.append_element_SRE(i, new_random_element)
 
@@ -179,21 +189,23 @@ class Verifier(Interactor):
             ), "the poly at layer {} step {} should be of length 4, but got {}".format(
                 layer, step, len(poly)
             )
-            sum_new_poly_at_0_1 = (
-                SU.cubic_evaluation(poly, 0, p) + SU.cubic_evaluation(poly, 1, p)
-            ) % p
-            old_value = SU.quadratic_evaluation(
-                self.get_specific_polynomial(layer, step - 1), 0, p
+            sum_new_poly_at_0_1 = add(
+                eval_commit_4_degree_poly(poly[0], poly[1], poly[2], poly[3], 0),
+                eval_commit_4_degree_poly(poly[0], poly[1], poly[2], poly[3], 1),
+            )
+            old_poly = self.get_specific_polynomial(layer, step - 1)
+            old_value = eval_commit_3_degree_poly(
+                old_poly[0], old_poly[1], old_poly[2], 0, p
             )
             assert (
-                sum_new_poly_at_0_1 == old_value % p
+                sum_new_poly_at_0_1 == old_value
             ), "the first check failed, {} is not equal to {}".format(
                 sum_new_poly_at_0_1, old_value
             )
             #            print("layer {} step 1 succeeded!".format(i))
             # Now the verification passes, verifier generate random challenges.
             self.append_sumcheck_polynomial(layer, poly)
-            new_random_element = np.random.randint(1, p)
+            new_random_element = mpz_random(rand_state, p)
             self.append_element_SRE(layer, new_random_element)
             return new_random_element
         if 1 < step <= k[layer] + 2 * (k[layer + 1] - num_copy[layer]):
@@ -203,14 +215,19 @@ class Verifier(Interactor):
             ), "the poly at layer {} step {} should be of length 4, but got {}".format(
                 layer, step, len(poly)
             )
-            sum_new_poly_at_0_1 = (
-                SU.cubic_evaluation(poly, 0, p) + SU.cubic_evaluation(poly, 1, p)
-            ) % p
-            old_value = SU.cubic_evaluation(
-                self.get_specific_polynomial(layer, step - 1), r, p
+            sum_new_poly_at_0_1 = add(
+                eval_commit_4_degree_poly(poly[0], poly[1], poly[2], poly[3], 0),
+                eval_commit_4_degree_poly(poly[0], poly[1], poly[2], poly[3], 1),
+            )
+            # old_value = SU.cubic_evaluation(
+            #     self.get_specific_polynomial(layer, step - 1), r, p
+            # )
+            old_poly = self.get_specific_polynomial(layer, step - 1)
+            old_value = eval_commit_4_degree_poly(
+                old_poly[0], old_poly[1], old_poly[2], old_poly[3], r
             )
             assert (
-                sum_new_poly_at_0_1 == old_value % p
+                sum_new_poly_at_0_1 == old_value
             ), "the check failed at layer {} step {}, {} is not equal to {}. copy_k[layer]={},copy_k[layer+1]={}".format(
                 layer,
                 step,
@@ -220,17 +237,18 @@ class Verifier(Interactor):
                 copy_k[layer + 1],
             )
             self.append_sumcheck_polynomial(layer, poly)
-            new_random_element = np.random.randint(1, p)
+            new_random_element = mpz_random(rand_state, p)
             self.append_element_SRE(layer, new_random_element)
             return new_random_element
         assert False, "step must be between 0 and {}".format(
             k[layer] + 2 * (k[layer + 1] - num_copy[layer])
         )
 
-    def reduce_two_to_one(self, i: int, poly: list):
+    def reduce_two_to_one(self, i: int, poly: list, commitment_of_product=None):
         """
         reduce_two_to_one
-        INPUTS: i (integer), poly (list)
+        INPUTS: i (integer), poly (list), commitment_of_product is optional, and it means v_1 * v_2. This is only useful in the mult layer verification. Commitment of product is the commitment of v1 * v2.
+
         OUTPUTS: new_random_vector (tuple)
         At the end of the sumcheck protocol for layer i, we have just received a
         polynomial, poly, that the prover claims to be \tilde{W}_{i+1} restricted to the line
@@ -255,7 +273,9 @@ class Verifier(Interactor):
         # The verifier needs to get the poly evaluated at 0 and 1 cause they are the claimed value of the prover
         if TIME_INFO:
             poly_start_time = time.time()
-        vals = [SU.polynomial_evaluation(poly, i, p) for i in range(2)]
+        # vals = [SU.polynomial_evaluation(poly, i, p) for i in range(2)]
+        # The reason why we use poly[::-1] is that THE POLY IS IN REVERSED ORDER.
+        vals = [eval_commit_n_degree_poly(poly[::-1], i) for i in range(2)]
         if TIME_INFO:
             poly_end_time = time.time()
             print(
@@ -307,23 +327,32 @@ class Verifier(Interactor):
         # what the prover claims W_{i+1}(bstar) and W_{i+1}(cstar) are.
         # (this is via the polynomial that the prover sends!!)
         if not i == d - 1:
-            current_claimed_value_of_fi = (add_bstar_cstar * (vals[0] + vals[1])) % p
+            current_claimed_value_of_fi = multiply(
+                add(vals[0], vals[1]),
+                add_bstar_cstar,
+            )
         else:
-            current_claimed_value_of_fi = (
-                SU.chi(RV_i, tuple(a2_last_layer) + tuple(a1_last_layer), k[i], p)
-                * (mult_bstar_cstar * (vals[0] * vals[1]))
-                % p
+            current_claimed_value_of_fi = multiply(
+                multiply(
+                    commitment_of_product,
+                    mult_bstar_cstar,
+                ),
+                SU.chi(RV_i, tuple(a2_last_layer) + tuple(a1_last_layer), k[i], p),
             )
         # The verifier needs to get the old claimed value to compare it with the new one.
         if TIME_INFO:
             old_claimed_value_start_time = time.time()
         if i == self.get_circ().get_depth() - 1:
-            old_claimed_value_of_fi = SU.cubic_evaluation(
-                last_poly, a2_last_layer[-1], p
+            old_claimed_value_of_fi = eval_commit_4_degree_poly(
+                last_poly[0],
+                last_poly[1],
+                last_poly[2],
+                last_poly[3],
+                a2_last_layer[-1],
             )
         else:
-            old_claimed_value_of_fi = SU.quadratic_evaluation(
-                last_poly, SRE_layer_i[-1], p
+            old_claimed_value_of_fi = eval_commit_3_degree_poly(
+                last_poly[0], last_poly[1], last_poly[2], a2_last_layer[-1], p
             )
         if TIME_INFO:
             old_claimed_value_end_time = time.time()
@@ -332,8 +361,8 @@ class Verifier(Interactor):
                     i, old_claimed_value_end_time - old_claimed_value_start_time
                 )
             )
-        assert (
-            current_claimed_value_of_fi == old_claimed_value_of_fi
+        assert eq(
+            current_claimed_value_of_fi, old_claimed_value_of_fi
         ), "The first check at the end of sumcheck for layer {} failed: there is an imcompatibility between the last polynomial and the claimed values of \tilde W_i+1(bstar) and \tilde W_i+1(cstar) {}!={}".format(
             i, current_claimed_value_of_fi, old_claimed_value_of_fi
         )
@@ -350,11 +379,12 @@ class Verifier(Interactor):
 
         # Phase 2: get the next layer claim
         line = self.get_line(i)
-        final_random_element_in_layer = np.random.randint(1, p)
+        final_random_element_in_layer = mpz_random(rand_state, p)
         new_random_vector = line(final_random_element_in_layer)
         self.append_RV(new_random_vector)
         self.append_claimed_values_at_end_of_layer(
-            SU.polynomial_evaluation(poly, final_random_element_in_layer, p)
+            # SU.polynomial_evaluation(poly, final_random_element_in_layer, p)
+            eval_commit_n_degree_poly(poly[::-1], final_random_element_in_layer)
         )
 
         return new_random_vector
@@ -362,6 +392,7 @@ class Verifier(Interactor):
     def encapsulate_verification_check(self, random_vector: list, value: int):
         """
         In encapsulation version, there is no line. We just need to check the unique claim.
+        Since verifier has nothing to do with the beginning claim of the next GKR, in this function it just updates some stuff, like keeping the random vector and claimed value inside itself.
         """
         self.append_RV(tuple(random_vector))
         self.append_claimed_values_at_end_of_layer(
@@ -406,7 +437,7 @@ class Verifier(Interactor):
         self.append_line(self.compute_line(i))
         p = self.get_p()
         line = self.get_line(i)
-        final_random_element_in_layer = np.random.randint(1, p)
+        final_random_element_in_layer = mpz_random(rand_state, p)
         new_random_vector = line(final_random_element_in_layer)
         self.append_RV(new_random_vector)
         self.append_claimed_values_at_end_of_layer(
@@ -429,8 +460,11 @@ class Verifier(Interactor):
         RV_d = tuple(self.get_random_vector(d))
         last_claimed_value = self.get_claimed_value_at_end_of_layer(d - 1)
         # We can now evaluate the MLE at the random vector since we know the input value.
-        actual_value_at_RV = SU.eval_MLE(Wd, RV_d, k[d], p)
-        assert last_claimed_value == actual_value_at_RV, "{} is not equal to {}".format(
-            last_claimed_value, actual_value_at_RV
+        actual_value_at_RV = SU.DP_eval_MLE(Wd, RV_d, k[d], p)
+        commitment_of_actual_value_at_RV = commit(actual_value_at_RV, 0, G, B)
+        assert eq(
+            last_claimed_value, commitment_of_actual_value_at_RV
+        ), "{} is not equal to {}".format(
+            last_claimed_value, commitment_of_actual_value_at_RV
         )
         return True

@@ -8,7 +8,7 @@ Created on Mon Jul 18 20:58:15 2022
 
 
 from interactor_GKR import Interactor
-
+from commitment import *
 import sumcheck_util as SU
 import circuit
 
@@ -73,6 +73,177 @@ class Prover(Interactor):
         # evaluate get_W(i) at the random vector r_i
         evaluation_at_random_vector = SU.DP_eval_MLE(D_i, r_i, k[i], p)
         self.append_evaluations_RV(evaluation_at_random_vector)
+
+    def sum_fi(self, i: int, s: int):
+        """
+        sum_fi
+        INPUTS: i (integer meaning the number of layers), s (step), num_copy (binary representation of the number of copies), RV (random vector sent by verifier, which is the math formula is z, {z_1+z_2}. This vector will be used in evaluation of W_i+1. the length of RV is k[i])
+        OUTPUTS: a quadratic polynomial, in the form of a list, i.e. [a, b, c],
+            which corresponds to a + bx + cx^2
+
+        sum_fi computes the relevant partial boolean hypercube sum that the prover
+        must compute at the sth step of the sumcheck protocol on the ith layer. the function returns a quadratic polynomial.
+
+        the sumcheck is done on a function fi, but we do not independently compute fi; rather,
+        we use an optimization.
+        here, f^{(i)}_{random_vector[i]} is a function on 2 * k[i+1] variables. (there is an
+        implicit parameter, random_vector[i]!! without this implicit parameter,
+        the function would be of k[i]+ 2 *k[i+1] variables, but we fix the first k[i]
+        inputs!!)
+
+        This function returns what the prover needs to send to the verifier in every round of the sumcheck protocol.
+
+        In this branch, sum_fi, partial sumcheck etc. is called for all but the last layer, namely all of the encapsulation layer. For the last, mult layer, we have functions that end with "mult" to deal with.
+        """
+
+        circ = self.get_circ()
+        d = circ.get_depth()
+        p = circ.get_p()
+        k = circ.get_k()
+        copy_k = circ.get_copy_k()
+        num_copy = circ.get_num_copy()
+        assert i >= 0 and i < d, "i is out of bounds"
+        assert i < len(self.get_random_vectors()), "haven't reached this layer yet"
+        # the partial sumcheck function address the case of s=0.
+        assert (
+            1 <= s <= k[i + 1] - num_copy[i]
+        ), "In parallel settings, the step s in sumcheck is out of bounds"
+        # check the len and type of RV
+        assert isinstance(
+            self.get_random_vector(i), tuple
+        ), f"RV must be a tuple, but got {type(self.get_random_vector(i))}"
+        assert (
+            len(self.get_random_vector(i)) == k[i]
+        ), f"RV must have {k[i]} elements, but got {len(self.get_random_vector(i))}"
+        poly_values = [
+            0,
+            0,
+            0,
+        ]  # initialize the values of my poly at the inputs 0, 1, 2
+        current_random_elements = self.get_layer_i_sumcheck_random_elements(i)
+
+        # the point is we only need to sum over such tuples that agree with the last (however many) bits of a!!
+        # bc is separated into 3 parts, tuple of random_elements, x and tuple of a. The length of the tuple of random_elements keeps growing as the step goes up. x is assigned to 0, 1 and 2 later. tuple of a contains the binary bits combinations.
+
+        # bc_partial is the first s-1 bits of random elements. It needs to append 0/1/2.
+        bc_partial = tuple(current_random_elements[: s - 1])
+        # the first k[i] bits of z are settled before the sumcheck.
+        # z = tuple(self.get_random_vector(i)) + bc
+        # W_iplus1 is a dictionary that takes in k[i+1] bits.
+        W_iplus1 = circ.get_W(i + 1)
+        # z1 is the gate random, z1 is of length copy_k[i+1].
+        # z1 = self.get_random_vector(i)[num_copy[i + 1] :]
+        # z2 is the copy random, z2 is of length num_copy[i + 1] because it acts as the input to the copy bits of W_i+1
+        z2 = self.get_random_vector(i)[: num_copy[i]]
+        z1 = self.get_random_vector(i)[num_copy[i] :]
+        # Cormode_x is lst of length 2^(k[i+1]-num_copy[i]-s)
+        Cormode_0 = SU.Cormode_eval_W(
+            W_iplus1, z2 + bc_partial + (0,), s + num_copy[i], k[i + 1], p
+        )
+        Cormode_1 = SU.Cormode_eval_W(
+            W_iplus1, z2 + bc_partial + (1,), s + num_copy[i], k[i + 1], p
+        )
+        Cormode_2 = SU.Cormode_eval_W(
+            W_iplus1, z2 + bc_partial + (2,), s + num_copy[i], k[i + 1], p
+        )
+
+        # Check that Cormode_0, Cormode_1, and Cormode_2 have the expected length
+        expected_length = 2 ** (k[i + 1] - num_copy[i] - s)
+        assert (
+            len(Cormode_0) == expected_length
+        ), f"Cormode_0 length should be {expected_length}, but got {len(Cormode_0)}"
+        assert (
+            len(Cormode_1) == expected_length
+        ), f"Cormode_1 length should be {expected_length}, but got {len(Cormode_1)}"
+        assert (
+            len(Cormode_2) == expected_length
+        ), f"Cormode_2 length should be {expected_length}, but got {len(Cormode_2)}"
+
+        if i != d - 1:
+            gate_type = "add"
+        else:
+            gate_type = "mult"
+
+        # iterate for all of the layer i+1 gates that are supposed to be in the copy assignment in layer i. k[i+1]-num_copy[i] is the number of all of the layer i+1 gates in the first copy of layer i.
+        for gate in range(2 ** (k[i + 1] - num_copy[i])):
+            # we use the first copy as an example.
+            bin_gate_label = SU.int_to_bin(gate, k[i + 1] - num_copy[i])
+            num_downstream = (k[i + 1] - num_copy[i]) - copy_k[i]
+            upstream = SU.int_to_bin(gate // 2**num_downstream, copy_k[i])
+            for x in range(3):
+                if x == 0:
+                    W_iplus1 = Cormode_0[SU.tuple_to_int(bin_gate_label[s:])]
+                elif x == 1:
+                    W_iplus1 = Cormode_1[SU.tuple_to_int(bin_gate_label[s:])]
+                elif x == 2:
+                    W_iplus1 = Cormode_2[SU.tuple_to_int(bin_gate_label[s:])]
+                else:
+                    raise ValueError("x must be 0, 1 or 2, but got {}".format(x))
+
+                if i == 0:
+                    if gate_type == "add":
+                        poly_values[x] = (
+                            poly_values[x]
+                            + SU.chi(
+                                z1 + bc_partial + (x,),
+                                (0,) + bin_gate_label[:s],
+                                copy_k[i] + s,
+                                p,
+                            )
+                            * W_iplus1
+                        ) % p
+                        poly_values[x] = (
+                            poly_values[x]
+                            + SU.chi(
+                                z1 + bc_partial + (x,),
+                                (1,) + bin_gate_label[:s],
+                                copy_k[i] + s,
+                                p,
+                            )
+                            * W_iplus1
+                        ) % p
+                else:
+                    if gate_type == "add":
+                        poly_values[x] = (
+                            poly_values[x]
+                            + SU.chi(
+                                z1 + bc_partial + (x,),
+                                upstream + bin_gate_label[:s],
+                                copy_k[i] + s,
+                                p,
+                            )
+                            * W_iplus1
+                        ) % p
+                # elif gate_type == "mult":
+                #     # print("mult gate")
+                #     poly_values[x] = (
+                #         poly_values[x]
+                #         + SU.chi(
+                #             a_gate[: copy_k[i] + s],
+                #             self.get_random_vector(i)[num_copy[i] :]
+                #             + bc_partial
+                #             + (x,),
+                #             copy_k[i] + s,
+                #             p,
+                #         )
+                #         * (W_iplus1_at_b * W_iplus1_at_c)
+                #     ) % p
+                # W_iplus1_at_b = SU.DP_eval_MLE(W_iplus1, b, k[i + 1], p)
+                # W_iplus1_at_c = SU.DP_eval_MLE(W_iplus1, c, k[i + 1], p)
+                # gate_type = circ.get_type(i, gate)
+                # This is the Tormode method. Each gate only contribute to one term, so we can just iterate over the gates. This also reduce the need to evaluate add and mult.
+                # if gate_type == "add":
+                #     poly_values[x] = (
+                #         poly_values[x]
+                #         + SU.chi(a, z, N, p) * (W_iplus1_at_b + W_iplus1_at_c)
+                #     ) % p
+                # elif gate_type == "mult":
+                #     poly_values[x] = (
+                #         poly_values[x]
+                #         + SU.chi(a, z, N, p) * (W_iplus1_at_b * W_iplus1_at_c)
+                #     ) % p
+        poly = SU.quadratic_interpolate(poly_values, p)
+        return poly
 
     def reusing_work_beta_initialize(self, layer: int, random_vector: tuple):
         """
@@ -752,175 +923,6 @@ class Prover(Interactor):
         poly = SU.cubic_interpolate(poly_values, p)
         return poly
 
-    def sum_fi(self, i: int, s: int):
-        """
-        sum_fi
-        INPUTS: i (integer meaning the number of layers), s (step), num_copy (binary representation of the number of copies), RV (random vector sent by verifier, which is the math formula is z, {z_1+z_2}. This vector will be used in evaluation of W_i+1. the length of RV is k[i])
-        OUTPUTS: a quadratic polynomial, in the form of a list, i.e. [a, b, c],
-            which corresponds to a + bx + cx^2
-
-        sum_fi computes the relevant partial boolean hypercube sum that the prover
-        must compute at the sth step of the sumcheck protocol on the ith layer. the function returns a quadratic polynomial.
-
-        the sumcheck is done on a function fi, but we do not independently compute fi; rather,
-        we use an optimization.
-        here, f^{(i)}_{random_vector[i]} is a function on 2 * k[i+1] variables. (there is an
-        implicit parameter, random_vector[i]!! without this implicit parameter,
-        the function would be of k[i]+ 2 *k[i+1] variables, but we fix the first k[i]
-        inputs!!)
-
-        This function returns what the prover needs to send to the verifier in every round of the sumcheck protocol.
-        """
-
-        circ = self.get_circ()
-        d = circ.get_depth()
-        p = circ.get_p()
-        k = circ.get_k()
-        copy_k = circ.get_copy_k()
-        num_copy = circ.get_num_copy()
-        assert i >= 0 and i < d, "i is out of bounds"
-        assert i < len(self.get_random_vectors()), "haven't reached this layer yet"
-        # the partial sumcheck function address the case of s=0.
-        assert (
-            1 <= s <= k[i + 1] - num_copy[i]
-        ), "In parallel settings, the step s in sumcheck is out of bounds"
-        # check the len and type of RV
-        assert isinstance(
-            self.get_random_vector(i), tuple
-        ), f"RV must be a tuple, but got {type(self.get_random_vector(i))}"
-        assert (
-            len(self.get_random_vector(i)) == k[i]
-        ), f"RV must have {k[i]} elements, but got {len(self.get_random_vector(i))}"
-        poly_values = [
-            0,
-            0,
-            0,
-        ]  # initialize the values of my poly at the inputs 0, 1, 2
-        current_random_elements = self.get_layer_i_sumcheck_random_elements(i)
-
-        # the point is we only need to sum over such tuples that agree with the last (however many) bits of a!!
-        # bc is separated into 3 parts, tuple of random_elements, x and tuple of a. The length of the tuple of random_elements keeps growing as the step goes up. x is assigned to 0, 1 and 2 later. tuple of a contains the binary bits combinations.
-
-        # bc_partial is the first s-1 bits of random elements. It needs to append 0/1/2.
-        bc_partial = tuple(current_random_elements[: s - 1])
-        # the first k[i] bits of z are settled before the sumcheck.
-        # z = tuple(self.get_random_vector(i)) + bc
-        # W_iplus1 is a dictionary that takes in k[i+1] bits.
-        W_iplus1 = circ.get_W(i + 1)
-        # z1 is the gate random, z1 is of length copy_k[i+1].
-        # z1 = self.get_random_vector(i)[num_copy[i + 1] :]
-        # z2 is the copy random, z2 is of length num_copy[i + 1] because it acts as the input to the copy bits of W_i+1
-        z2 = self.get_random_vector(i)[: num_copy[i]]
-        z1 = self.get_random_vector(i)[num_copy[i] :]
-        # Cormode_x is lst of length 2^(k[i+1]-num_copy[i]-s)
-        Cormode_0 = SU.Cormode_eval_W(
-            W_iplus1, z2 + bc_partial + (0,), s + num_copy[i], k[i + 1], p
-        )
-        Cormode_1 = SU.Cormode_eval_W(
-            W_iplus1, z2 + bc_partial + (1,), s + num_copy[i], k[i + 1], p
-        )
-        Cormode_2 = SU.Cormode_eval_W(
-            W_iplus1, z2 + bc_partial + (2,), s + num_copy[i], k[i + 1], p
-        )
-
-        # Check that Cormode_0, Cormode_1, and Cormode_2 have the expected length
-        expected_length = 2 ** (k[i + 1] - num_copy[i] - s)
-        assert (
-            len(Cormode_0) == expected_length
-        ), f"Cormode_0 length should be {expected_length}, but got {len(Cormode_0)}"
-        assert (
-            len(Cormode_1) == expected_length
-        ), f"Cormode_1 length should be {expected_length}, but got {len(Cormode_1)}"
-        assert (
-            len(Cormode_2) == expected_length
-        ), f"Cormode_2 length should be {expected_length}, but got {len(Cormode_2)}"
-
-        if i != d - 1:
-            gate_type = "add"
-        else:
-            gate_type = "mult"
-
-        # iterate for all of the layer i+1 gates that are supposed to be in the copy assignment in layer i. k[i+1]-num_copy[i] is the number of all of the layer i+1 gates in the first copy of layer i.
-        for gate in range(2 ** (k[i + 1] - num_copy[i])):
-            # we use the first copy as an example.
-            bin_gate_label = SU.int_to_bin(gate, k[i + 1] - num_copy[i])
-            num_downstream = (k[i + 1] - num_copy[i]) - copy_k[i]
-            upstream = SU.int_to_bin(gate // 2**num_downstream, copy_k[i])
-            for x in range(3):
-                if x == 0:
-                    W_iplus1 = Cormode_0[SU.tuple_to_int(bin_gate_label[s:])]
-                elif x == 1:
-                    W_iplus1 = Cormode_1[SU.tuple_to_int(bin_gate_label[s:])]
-                elif x == 2:
-                    W_iplus1 = Cormode_2[SU.tuple_to_int(bin_gate_label[s:])]
-                else:
-                    raise ValueError("x must be 0, 1 or 2, but got {}".format(x))
-
-                if i == 0:
-                    if gate_type == "add":
-                        poly_values[x] = (
-                            poly_values[x]
-                            + SU.chi(
-                                z1 + bc_partial + (x,),
-                                (0,) + bin_gate_label[:s],
-                                copy_k[i] + s,
-                                p,
-                            )
-                            * W_iplus1
-                        ) % p
-                        poly_values[x] = (
-                            poly_values[x]
-                            + SU.chi(
-                                z1 + bc_partial + (x,),
-                                (1,) + bin_gate_label[:s],
-                                copy_k[i] + s,
-                                p,
-                            )
-                            * W_iplus1
-                        ) % p
-                else:
-                    if gate_type == "add":
-                        poly_values[x] = (
-                            poly_values[x]
-                            + SU.chi(
-                                z1 + bc_partial + (x,),
-                                upstream + bin_gate_label[:s],
-                                copy_k[i] + s,
-                                p,
-                            )
-                            * W_iplus1
-                        ) % p
-                # elif gate_type == "mult":
-                #     # print("mult gate")
-                #     poly_values[x] = (
-                #         poly_values[x]
-                #         + SU.chi(
-                #             a_gate[: copy_k[i] + s],
-                #             self.get_random_vector(i)[num_copy[i] :]
-                #             + bc_partial
-                #             + (x,),
-                #             copy_k[i] + s,
-                #             p,
-                #         )
-                #         * (W_iplus1_at_b * W_iplus1_at_c)
-                #     ) % p
-                # W_iplus1_at_b = SU.DP_eval_MLE(W_iplus1, b, k[i + 1], p)
-                # W_iplus1_at_c = SU.DP_eval_MLE(W_iplus1, c, k[i + 1], p)
-                # gate_type = circ.get_type(i, gate)
-                # This is the Tormode method. Each gate only contribute to one term, so we can just iterate over the gates. This also reduce the need to evaluate add and mult.
-                # if gate_type == "add":
-                #     poly_values[x] = (
-                #         poly_values[x]
-                #         + SU.chi(a, z, N, p) * (W_iplus1_at_b + W_iplus1_at_c)
-                #     ) % p
-                # elif gate_type == "mult":
-                #     poly_values[x] = (
-                #         poly_values[x]
-                #         + SU.chi(a, z, N, p) * (W_iplus1_at_b * W_iplus1_at_c)
-                #     ) % p
-        poly = SU.quadratic_interpolate(poly_values, p)
-        return poly
-
     def partial_sumcheck(self, i: int, s: int, random_element: int):
         """
         partial_sumcheck
@@ -957,7 +959,7 @@ class Prover(Interactor):
         # \tilde{W}_i(value_of_random_vectors[i]).
         # (NOTE: no sum is required.)
         if s == 0:
-            new_evaluation = self.get_evaluation_of_RV(i)
+            new_evaluation = commit(self.get_evaluation_of_RV(i), 0, G, B)
             if DEBUG_INFO:
                 print(
                     "The multi-linear extension of W_{} at {} is {}".format(
@@ -969,14 +971,20 @@ class Prover(Interactor):
         # from s==1, Prover has to send the partial sum of the W_i+1 variables. But until now no random element has been sent from verifier to prover, so we don't need to append the random_element to the SRE.
         elif s == 1:
             poly = self.sum_fi(i, s)
+            commitment_poly = list(
+                commit_3_degree_poly(poly[0], poly[1], poly[2], 0, 0, 0, G, B)
+            )
             self.append_sumcheck_polynomial(i, poly)
-            return poly
+            return commitment_poly
         elif s <= k[i + 1] - num_copy[i]:
             # the sumcheck_random_elements[i] keeps updating as we use every round. It initializes to all 0 but every time we only use its non-zero part after update.
             self.append_element_SRE(i, random_element)
             poly = self.sum_fi(i, s)
+            commitment_poly = list(
+                commit_3_degree_poly(poly[0], poly[1], poly[2], 0, 0, 0, G, B)
+            )
             self.append_sumcheck_polynomial(i, poly)
-            return poly
+            return commitment_poly
 
     # NOTE: we're appending the last random element, to fill out the sumcheck random elements. Write in specs!
 
@@ -990,10 +998,10 @@ class Prover(Interactor):
         copy_k = self.get_copy_k()
         RV_i = self.get_random_vector(d - 1)
         if step == 0:
-            new_evaluation = self.get_evaluation_of_RV(d - 1)
+            new_evaluation = commit(self.get_evaluation_of_RV(d - 1), 0, G, B)
             if DEBUG_INFO:
                 print(
-                    "The multi-linear extension of W_{} at {} is {}".format(
+                    "The commitment value of multi-linear extension of W_{} at {} is {}".format(
                         d - 1, RV_i, new_evaluation
                     )
                 )
@@ -1003,9 +1011,13 @@ class Prover(Interactor):
                 d - 1, self.get_random_vector(d - 1)
             )
             poly = self.sum_fi_mult_layer(d - 1, step)
+            commitment_poly = list(
+                commit_4_degree_poly(
+                    poly[0], poly[1], poly[2], poly[3], 0, 0, 0, 0, G, B
+                )
+            )
             self.append_sumcheck_polynomial(d - 1, poly)
-            return poly
-        # step == 2 means a_1 is fixed(we assume a_1 is 1 bit). for now the beta keeps the same until a_2 round.
+            return commitment_poly
         if step <= copy_k[d - 1] + 1:
             # update beta array
             self.reusing_work_beta_update(
@@ -1014,14 +1026,24 @@ class Prover(Interactor):
             )
             self.append_element_SRE(d - 1, random_element)
             poly = self.sum_fi_mult_layer(d - 1, step)
+            commitment_poly = list(
+                commit_4_degree_poly(
+                    poly[0], poly[1], poly[2], poly[3], 0, 0, 0, 0, G, B
+                )
+            )
             self.append_sumcheck_polynomial(d - 1, poly)
-            return poly
+            return commitment_poly
         # when step ==6, we are actually fixing a_2, but since we don't need to update the beta array, the code is the same as previous situations.
         if copy_k[d - 1] + 1 < step <= copy_k[d - 1] + 2 * (k[d] - num_copy[d - 1]) + 1:
             self.append_element_SRE(d - 1, random_element)
             poly = self.sum_fi_mult_layer(d - 1, step)
+            commitment_poly = list(
+                commit_4_degree_poly(
+                    poly[0], poly[1], poly[2], poly[3], 0, 0, 0, 0, G, B
+                )
+            )
             self.append_sumcheck_polynomial(d - 1, poly)
-            return poly
+            return commitment_poly
         if (
             copy_k[d - 1] + 2 * (k[d] - num_copy[d - 1]) + 1
             < step
@@ -1035,8 +1057,13 @@ class Prover(Interactor):
             )
             self.append_element_SRE(d - 1, random_element)
             poly = self.sum_fi_mult_layer(d - 1, step)
+            commitment_poly = list(
+                commit_4_degree_poly(
+                    poly[0], poly[1], poly[2], poly[3], 0, 0, 0, 0, G, B
+                )
+            )
             self.append_sumcheck_polynomial(d - 1, poly)
-            return poly
+            return commitment_poly
         else:
             assert (
                 False
@@ -1067,7 +1094,6 @@ class Prover(Interactor):
         # copy_k = self.get_circ().get_copy_k()
         num_copy = self.get_num_copy()
 
-        # After appending, there are only 2*copy_k[i+1] elements in the SRE.
         self.append_element_SRE(i, random_element)
         # We need to expand it to 2*k[i+1]
         if not i == self.get_depth() - 1:
@@ -1089,16 +1115,23 @@ class Prover(Interactor):
             k[i + 1],
             p,
         )
+        value_at_b = SU.polynomial_evaluation(poly, 0, p)
+        value_at_c = SU.polynomial_evaluation(poly, 1, p)
+        # Commit and send back the poly.
+        gammas = [0] * len(poly)
+        commitment_poly = commit_n_degree_poly(poly, gammas, G, B)
+        return commitment_poly, value_at_b, value_at_c
         # deg_of_poly = len(poly)-1
         # string_of_poly = "+".join(\
         #                           ["{}*x^{}".format(poly[k],deg_of_poly - k) for k in range(deg_of_poly+1)])
         # print("The univariate polynomial that the prover sends at the end of step {} on the line is: {}".\
         #       format(i, string_of_poly))
-        return poly
 
     def encapsulate_verification(self, num_layer: int, random_element: int):
         """
         This function is used in the situation of encapsulation case, where there is no need to have a line, just a single W_i+1.
+
+        So in this function, after prover receive the last random element sent by verifier, prover evaluates the value of W_i+1 at the random element and returns the evaluated value and random elements. What's more, since there is no line needed, sumcheck random element[layer] is assigned to random vector of the next layer directly. So this layer's random challenge directly becomes next layer's random vector, the beginning of next layer's GKR.
         """
         k = self.get_k()
         num_copy = self.get_num_copy()
@@ -1123,7 +1156,11 @@ class Prover(Interactor):
             k[num_layer + 1],
             self.circ.get_p(),
         )
-        return value_eval, self.sumcheck_random_elements[num_layer]
+        commitment_value_eval = commit(value_eval, 0, G, B)
+        self.random_vectors.append(tuple(self.sumcheck_random_elements[num_layer]))
+        self.append_evaluations_RV(value_eval)
+        # No need to commitment the self.sumcheck_random_elements[num_layer] since it is known to the verifier.
+        return commitment_value_eval, self.sumcheck_random_elements[num_layer]
         # return self.sumcheck_random_elements[num_layer]
 
     def send_final_Wd_evaluation(self):
