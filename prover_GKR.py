@@ -8,7 +8,7 @@ Created on Mon Jul 18 20:58:15 2022
 
 
 from interactor_GKR import Interactor
-
+from commitment import *
 import sumcheck_util as SU
 import circuit
 
@@ -1153,7 +1153,7 @@ class Prover(Interactor):
         # \tilde{W}_i(value_of_random_vectors[i]).
         # (NOTE: no sum is required.)
         if s == 0:
-            new_evaluation = self.get_evaluation_of_RV(i)
+            new_evaluation = commit(self.get_evaluation_of_RV(i), 0, G, B)
             if DEBUG_INFO:
                 print(
                     "The multi-linear extension of W_{} at {} is {}".format(
@@ -1165,14 +1165,20 @@ class Prover(Interactor):
         # from s==1, Prover has to send the partial sum of the W_i+1 variables. But until now no random element has been sent from verifier to prover, so we don't need to append the random_element to the SRE.
         elif s == 1:
             poly = self.sum_fi(i, s)
+            commitment_poly = list(
+                commit_3_degree_poly(poly[0], poly[1], poly[2], 0, 0, 0, G, B)
+            )
             self.append_sumcheck_polynomial(i, poly)
-            return poly
+            return commitment_poly
         elif s <= 2 * (k[i + 1] - num_copy[i]):
             # the sumcheck_random_elements[i] keeps updating as we use every round. It initializes to all 0 but every time we only use its non-zero part after update.
             self.append_element_SRE(i, random_element)
             poly = self.sum_fi(i, s)
+            commitment_poly = list(
+                commit_3_degree_poly(poly[0], poly[1], poly[2], 0, 0, 0, G, B)
+            )
             self.append_sumcheck_polynomial(i, poly)
-            return poly
+            return commitment_poly
 
     # NOTE: we're appending the last random element, to fill out the sumcheck random elements. Write in specs!
 
@@ -1188,10 +1194,10 @@ class Prover(Interactor):
         copy_k = self.get_copy_k()
         RV_i = self.get_random_vector(d - 1)
         if step == 0:
-            new_evaluation = self.get_evaluation_of_RV(d - 1)
+            new_evaluation = commit(self.get_evaluation_of_RV(d - 1), 0, G, B)
             if DEBUG_INFO:
                 print(
-                    "The multi-linear extension of W_{} at {} is {}".format(
+                    "The commitment value of multi-linear extension of W_{} at {} is {}".format(
                         d - 1, RV_i, new_evaluation
                     )
                 )
@@ -1201,8 +1207,13 @@ class Prover(Interactor):
                 d - 1, self.get_random_vector(d - 1)
             )
             poly = self.sum_fi_mult_layer(d - 1, step)
+            commitment_poly = list(
+                commit_4_degree_poly(
+                    poly[0], poly[1], poly[2], poly[3], 0, 0, 0, 0, G, B
+                )
+            )
             self.append_sumcheck_polynomial(d - 1, poly)
-            return poly
+            return commitment_poly
         if step <= copy_k[d - 1] + 1:
             # update beta array
             self.reusing_work_beta_update(
@@ -1211,14 +1222,24 @@ class Prover(Interactor):
             )
             self.append_element_SRE(d - 1, random_element)
             poly = self.sum_fi_mult_layer(d - 1, step)
+            commitment_poly = list(
+                commit_4_degree_poly(
+                    poly[0], poly[1], poly[2], poly[3], 0, 0, 0, 0, G, B
+                )
+            )
             self.append_sumcheck_polynomial(d - 1, poly)
-            return poly
+            return commitment_poly
         # when step ==6, we are actually fixing a_2, but since we don't need to update the beta array, the code is the same as previous situations.
         if copy_k[d - 1] + 1 < step <= copy_k[d - 1] + 2 * (k[d] - num_copy[d - 1]) + 1:
             self.append_element_SRE(d - 1, random_element)
             poly = self.sum_fi_mult_layer(d - 1, step)
+            commitment_poly = list(
+                commit_4_degree_poly(
+                    poly[0], poly[1], poly[2], poly[3], 0, 0, 0, 0, G, B
+                )
+            )
             self.append_sumcheck_polynomial(d - 1, poly)
-            return poly
+            return commitment_poly
         if (
             copy_k[d - 1] + 2 * (k[d] - num_copy[d - 1]) + 1
             < step
@@ -1232,8 +1253,13 @@ class Prover(Interactor):
             )
             self.append_element_SRE(d - 1, random_element)
             poly = self.sum_fi_mult_layer(d - 1, step)
+            commitment_poly = list(
+                commit_4_degree_poly(
+                    poly[0], poly[1], poly[2], poly[3], 0, 0, 0, 0, G, B
+                )
+            )
             self.append_sumcheck_polynomial(d - 1, poly)
-            return poly
+            return commitment_poly
         else:
             assert (
                 False
@@ -1262,9 +1288,9 @@ class Prover(Interactor):
         k = self.get_k()
         # copy_k = self.get_circ().get_copy_k()
         num_copy = self.get_num_copy()
-
-        # After appending, there are only 2*copy_k[i+1] elements in the SRE.
         self.append_element_SRE(i, random_element)
+        # After appending, there are only 2*copy_k[i+1] elements in the SRE.
+
         # We need to expand it to 2*k[i+1]
         if not i == self.get_depth() - 1:
             self.process_SRE_for_parallelism(i, z_tuple[: num_copy[i]])
@@ -1285,7 +1311,13 @@ class Prover(Interactor):
             k[i + 1],
             p,
         )
-        return poly
+        # value_at_b and value_at_c is the real value not committed. What get committed are the coefficients of the polynomial.
+        value_at_b = SU.polynomial_evaluation(poly, 0, p)
+        value_at_c = SU.polynomial_evaluation(poly, 1, p)
+        # Commit and send back the poly.
+        gammas = [0] * len(poly)
+        commitment_poly = commit_n_degree_poly(poly, gammas, G, B)
+        return commitment_poly, value_at_b, value_at_c
 
     def send_final_Wd_evaluation(self):
         """

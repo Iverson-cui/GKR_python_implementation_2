@@ -255,6 +255,8 @@ def polynomial_evaluation(poly, x, p):
     Here, poly is a list of coefficients of the polynomial like what the above function returns. x is a single evaluation point.
 
     This function may perform the same operation as the `cubic_evaluation` or `quadratic_evaluation` functions, but it is more general and can handle polynomials of any degree.
+
+    POLY IS IN REVERSED ORDER IN THIS FUNCTION!!!!!
     """
     reverse_poly = poly[::-1]
     answer = 0

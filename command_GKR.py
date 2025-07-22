@@ -6,12 +6,17 @@ Created on Mon Jul 18 21:38:43 2022
 @author: raju
 """
 
+from gmpy2 import mpz, random_state, mpz_random
 import os
+from commitment import *
+
+
+rand_state = random_state(1)
 
 # current_dir is the folder which contains the current python file.
 current_dir = os.path.dirname(os.path.abspath(__file__))
 # print("current_dir:", current_dir)
-data_dir = os.path.join(current_dir, "./test_circuit/32_3dconv.csv")
+data_dir = os.path.join(current_dir, "./test_circuit/4_3dconv.csv")
 # file_path = os.path.join(data_dir, "events_semantic.json")
 
 
@@ -176,7 +181,29 @@ def execute(C):
                             )
                         )
         # W_iplus1_with_line is what the prover claims \tilde{W}_i restricted to the line is.
-        W_iplus1_with_line = prover_inst.send_Wi_on_line(i, r)
+        W_iplus1_with_line, value_at_b, value_at_c = prover_inst.send_Wi_on_line(i, r)
+        if i == d - 1:
+            temp_lst_mult_layer = proof_of_product_step_1(
+                value_at_b, value_at_c, 0, 0, 0, G, B
+            )
+            c = mpz_random(rand_state, int(prime))
+            z = proof_of_product_step_2(
+                value_at_b, value_at_c, temp_lst_mult_layer[6:], 0, 0, 0, c
+            )
+            proof_of_product_verification(
+                temp_lst_mult_layer[0],
+                temp_lst_mult_layer[1],
+                temp_lst_mult_layer[2],
+                temp_lst_mult_layer[3],
+                temp_lst_mult_layer[4],
+                temp_lst_mult_layer[5],
+                z,
+                c,
+                G,
+                B,
+            )
+            # temp_lst_mult_layer[2] is Z, the commitment of the product.
+            commitment_of_product = temp_lst_mult_layer[2]
         if DEBUG_INFO:
             print(
                 "The univariate polynomial that the prover sends at the end of step {} on the line is: {}".format(
@@ -193,7 +220,13 @@ def execute(C):
 
         if TIME_INFO:
             reduce_start_time = time.time()
-        new_random_vector = verifier_inst.reduce_two_to_one(i, W_iplus1_with_line)
+
+        if i == d - 1:
+            new_random_vector = verifier_inst.reduce_two_to_one(
+                i, W_iplus1_with_line, commitment_of_product=commitment_of_product
+            )
+        else:
+            new_random_vector = verifier_inst.reduce_two_to_one(i, W_iplus1_with_line)
         if TIME_INFO:
             reduce_end_time = time.time()
             print(
@@ -235,10 +268,10 @@ def execute(C):
 
 # C = [circuit.createCircuit("circuitdata-{}.csv".format(i), 10007) for i in range(1, 5)]
 # Deep_C = circuit.createCircuit("deep_circuit-1.csv", 10007)
-test_circuit = circuit.createCircuit(data_dir, [5, 5, 5, 5, 5, 5, 5, 5], 10007)
-execution_time = timeit.timeit(lambda: execute(test_circuit), number=5)
+test_circuit = circuit.createCircuit(data_dir, [2, 2, 3, 4, 5, 6, 7, 8], mpz(prime))
+execution_time = timeit.timeit(lambda: execute(test_circuit), number=3)
 print(
     "\033[33mExecution time for test_circuit: {}\033[0m seconds".format(
-        execution_time / 5
+        execution_time / 3
     )
 )
