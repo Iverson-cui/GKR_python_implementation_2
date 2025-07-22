@@ -144,7 +144,7 @@ class Interactor:
         return lines[i]
 
     def append_evaluations_RV(self, val):
-        assert type(val) == int, "type of input is not an integer"
+        # assert type(val) == int, "type of input is not an integer"
         self.evaluations_of_random_vectors.append(val)
 
     def append_RV(self, vec):
@@ -219,7 +219,7 @@ class Interactor:
         c = layer_i_random_elements[k[i + 1] :]
 
         def line(x):
-            assert type(x) == int, "input to line function must be an integer"
+            # assert type(x) == int, "input to line function must be an integer"
             np_answer = (np.array(b) + (np.array(c) - np.array(b)) * x) % p
             return tuple(int(c) for c in np_answer)
 

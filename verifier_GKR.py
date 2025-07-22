@@ -8,6 +8,8 @@ Created on Mon Jul 18 21:49:06 2022
 
 
 import numpy as np
+from gmpy2 import random_state, mpz_random
+from commitment import *
 
 # import math
 # import random
@@ -20,6 +22,8 @@ from interactor_GKR import Interactor
 
 DEBUG_INFO = False
 TIME_INFO = True
+
+rand_state = random_state(12345)  # Using 12345 as seed
 
 
 class Verifier(Interactor):
@@ -54,7 +58,7 @@ class Verifier(Interactor):
         k = self.circ.get_k()  # k is a list of the log (base 2) of number of gates
         # in each layer.
         p = self.p
-        first_random_vector = tuple([np.random.randint(0, p) for i in range(k[0])])
+        first_random_vector = tuple([mpz_random(rand_state, p) for i in range(k[0])])
         self.random_vectors.append(first_random_vector)
         value_at_first_random_vector = SU.DP_eval_MLE(D, first_random_vector, k[0], p)
         self.append_evaluations_RV(value_at_first_random_vector)
@@ -116,7 +120,7 @@ class Verifier(Interactor):
             #            print("layer {} step 1 succeeded!".format(i))
             # Now the verification passes, verifier generate random challenges.
             self.append_sumcheck_polynomial(i, poly)
-            new_random_element = np.random.randint(0, p)
+            new_random_element = mpz_random(rand_state, p)
             self.append_element_SRE(i, new_random_element)
             return new_random_element
         elif 1 < s <= 2 * (k[i + 1] - num_copy[i]):
@@ -140,7 +144,7 @@ class Verifier(Interactor):
 
             # first, append the polynomial that has passed the verification to the list of polynomials.
             self.append_sumcheck_polynomial(i, poly)
-            new_random_element = np.random.randint(0, p)
+            new_random_element = mpz_random(rand_state, p)
             # Then append the random challenge of the last variable to the SRE list.
             self.append_element_SRE(i, new_random_element)
 
@@ -206,7 +210,7 @@ class Verifier(Interactor):
             #            print("layer {} step 1 succeeded!".format(i))
             # Now the verification passes, verifier generate random challenges.
             self.append_sumcheck_polynomial(layer, poly)
-            new_random_element = np.random.randint(0, p)
+            new_random_element = mpz_random(rand_state, p)
             self.append_element_SRE(layer, new_random_element)
             return new_random_element
         # All other cases.
@@ -243,7 +247,7 @@ class Verifier(Interactor):
                 copy_k[layer + 1],
             )
             self.append_sumcheck_polynomial(layer, poly)
-            new_random_element = np.random.randint(0, p)
+            new_random_element = mpz_random(rand_state, p)
             self.append_element_SRE(layer, new_random_element)
             return new_random_element
         assert False, "step must be between 0 and {}".format(
@@ -365,7 +369,7 @@ class Verifier(Interactor):
 
         # Phase 2: get the next layer claim
         line = self.get_line(i)
-        final_random_element_in_layer = np.random.randint(0, p)
+        final_random_element_in_layer = mpz_random(rand_state, p)
         new_random_vector = line(final_random_element_in_layer)
         self.append_RV(new_random_vector)
         self.append_claimed_values_at_end_of_layer(
@@ -404,7 +408,7 @@ class Verifier(Interactor):
         self.append_line(self.compute_line(i))
         p = self.get_p()
         line = self.get_line(i)
-        final_random_element_in_layer = np.random.randint(0, p)
+        final_random_element_in_layer = mpz_random(rand_state, p)
         new_random_vector = line(final_random_element_in_layer)
         self.append_RV(new_random_vector)
         self.append_claimed_values_at_end_of_layer(

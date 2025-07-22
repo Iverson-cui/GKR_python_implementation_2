@@ -1,5 +1,5 @@
 from py_ecc.bn128 import G1, multiply, add, FQ
-from py_ecc.bn128 import curve_order as p
+from py_ecc.bn128 import curve_order as prime
 import random
 
 
@@ -7,7 +7,7 @@ def random_field_element():
     """
     Returns a random field element with field order p.
     """
-    return random.randint(0, p)
+    return random.randint(0, prime)
 
 
 # these EC points have unknown discrete logs:
@@ -62,7 +62,7 @@ def evaluate(f_0, f_1, f_2, u):
     """
     This function returns the evaluation of the polynomial f at point u.
     """
-    return (f_0 + f_1 * u + f_2 * u**2) % p
+    return (f_0 + f_1 * u + f_2 * u**2) % prime
 
 
 def prove(gamma_0, gamma_1, gamma_2, u):
@@ -74,7 +74,7 @@ def prove(gamma_0, gamma_1, gamma_2, u):
     This function returns the pi, proof that the prover gives to the verifier to help him open the commitment.
     """
 
-    pi = (gamma_0 + gamma_1 * u + gamma_2 * u**2) % p
+    pi = (gamma_0 + gamma_1 * u + gamma_2 * u**2) % prime
     return pi
 
 
@@ -97,7 +97,7 @@ def verify(C0, C1, C2, G, B, f_u, pi, u):
     """
 
     # First, compute C(u) = C0 + u*C1 + u^2*C2
-    u_squared = (u * u) % p
+    u_squared = (u * u) % prime
 
     # C1 * u
     C1_times_u = multiply(C1, u)

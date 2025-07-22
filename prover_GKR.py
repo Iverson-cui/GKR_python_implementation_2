@@ -8,7 +8,7 @@ Created on Mon Jul 18 20:58:15 2022
 
 
 from interactor_GKR import Interactor
-
+from commitment import *
 import sumcheck_util as SU
 import circuit
 
