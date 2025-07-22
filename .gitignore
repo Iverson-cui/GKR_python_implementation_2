@@ -2,3 +2,5 @@ output.csv
 example*.csv
 *.pyc
 __pycache__/
+gmpy2test.py
+intvsmpz.py
