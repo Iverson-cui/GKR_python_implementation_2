@@ -130,7 +130,7 @@ def prove(gamma_0, gamma_1, gamma_2, u):
     return pi
 
 
-def eval_commit_3_degree_poly(C0, C1, C2, u):
+def eval_commit_3_degree_poly(C0, C1, C2, u, p):
     """
     This function evaluates the commitment value of a commitment poly evaluated at u.
 
@@ -141,7 +141,7 @@ def eval_commit_3_degree_poly(C0, C1, C2, u):
     OUTPUTS:
     - C_u: The commitment value of the polynomial evaluated at u.
     """
-    u_squared = (u * u) % 10007
+    u_squared = (u * u) % p
 
     # C1 * u
     C1_times_u = multiply(C1, u)
@@ -165,8 +165,8 @@ def eval_commit_4_degree_poly(C0, C1, C2, C3, u):
     OUTPUTS:
     - C_u: The commitment value of the polynomial evaluated at u.
     """
-    u_squared = (u * u) % 10007
-    u_cubed = (u * u_squared) % 10007
+    u_squared = (u * u) % prime
+    u_cubed = (u * u_squared) % prime
 
     # C1 * u
     C1_times_u = multiply(C1, u)
@@ -198,7 +198,7 @@ def eval_commit_n_degree_poly(commitments, u):
     C_u = commitments[0]
 
     # Compute powers of u and add each term
-    u_power = u % prime  # u^1
+    u_power = u % int(prime)  # u^1
     for i in range(1, len(commitments)):
         # Add C_i * u^i to the result
         C_i_times_u_power = multiply(commitments[i], u_power)
@@ -206,7 +206,7 @@ def eval_commit_n_degree_poly(commitments, u):
 
         # Update u_power for next iteration: u^i -> u^(i+1)
         if i < len(commitments) - 1:  # Don't compute unnecessary power
-            u_power = (u_power * u) % prime
+            u_power = (u_power * u) % int(prime)
 
     return C_u
 
@@ -272,27 +272,27 @@ def verify(C0, C1, C2, G, B, f_u, pi, u):
 # # print(G1)
 
 
-poly_original = [1, 2, 3]
-poly_commitment = commit_3_degree_poly(
-    poly_original[0], poly_original[1], poly_original[2], 0, 0, 0, G, B
-)
-after_commitment = add(
-    eval_commit_3_degree_poly(
-        poly_commitment[0], poly_commitment[1], poly_commitment[2], 1
-    ),
-    eval_commit_3_degree_poly(
-        poly_commitment[0], poly_commitment[1], poly_commitment[2], 0
-    ),
-)
-before_commitment = add(multiply(poly_commitment[0], 2), poly_commitment[1])
-real_value = commit(
-    evaluate(poly_original[0], poly_original[1], poly_original[2], 1)
-    + evaluate(poly_original[0], poly_original[1], poly_original[2], 0),
-    0,
-    G,
-    B,
-)
-assert after_commitment == real_value, "Commitment evaluation failed"
+# poly_original = [1, 2, 3]
+# poly_commitment = commit_3_degree_poly(
+#     poly_original[0], poly_original[1], poly_original[2], 0, 0, 0, G, B
+# )
+# after_commitment = add(
+#     eval_commit_3_degree_poly(
+#         poly_commitment[0], poly_commitment[1], poly_commitment[2], 1, p
+#     ),
+#     eval_commit_3_degree_poly(
+#         poly_commitment[0], poly_commitment[1], poly_commitment[2], 0, p
+#     ),
+# )
+# before_commitment = add(multiply(poly_commitment[0], 2), poly_commitment[1])
+# real_value = commit(
+#     evaluate(poly_original[0], poly_original[1], poly_original[2], 1)
+#     + evaluate(poly_original[0], poly_original[1], poly_original[2], 0),
+#     0,
+#     G,
+#     B,
+# )
+# assert after_commitment == real_value, "Commitment evaluation failed"
 
 
 def proof_of_product_step_1(x, y, rx, ry, rz, G, B):

@@ -1334,11 +1334,16 @@ class Prover(Interactor):
             )
             self.append_element_SRE(layer, random_element)
             poly = self.sum_fi_parallel(layer, step)
-            commitment_poly = list(
-                commit_4_degree_poly(
-                    poly[0], poly[1], poly[2], poly[3], 0, 0, 0, 0, G, B
+            if not layer == self.get_depth() - 1:
+                commitment_poly = list(
+                    commit_3_degree_poly(poly[0], poly[1], poly[2], 0, 0, 0, G, B)
                 )
-            )
+            else:
+                commitment_poly = list(
+                    commit_4_degree_poly(
+                        poly[0], poly[1], poly[2], poly[3], 0, 0, 0, 0, G, B
+                    )
+                )
             self.append_sumcheck_polynomial(layer, poly)
             return commitment_poly
         assert (
@@ -1390,6 +1395,7 @@ class Prover(Interactor):
             k[i + 1],
             p,
         )
+        # value_at_b and value_at_c is the real value not committed. What get committed are the coefficients of the polynomial.
         value_at_b = SU.polynomial_evaluation(poly, 0, p)
         value_at_c = SU.polynomial_evaluation(poly, 1, p)
         # Commit and send back the poly.

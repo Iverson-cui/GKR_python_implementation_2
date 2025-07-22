@@ -209,15 +209,15 @@ class Verifier(Interactor):
                 #     + SU.quadratic_evaluation(poly, 1, p)
                 # ) % p
                 sum_new_poly_at_0_1 = add(
-                    eval_commit_3_degree_poly(poly[0], poly[1], poly[2], 0),
-                    eval_commit_3_degree_poly(poly[0], poly[1], poly[2], 1),
+                    eval_commit_3_degree_poly(poly[0], poly[1], poly[2], 0, p),
+                    eval_commit_3_degree_poly(poly[0], poly[1], poly[2], 1, p),
                 )
             # old_value = SU.quadratic_evaluation(
             #     self.get_specific_polynomial(layer, step - 1), 0, p
             # )
             old_poly = self.get_specific_polynomial(layer, step - 1)
             old_value = eval_commit_3_degree_poly(
-                old_poly[0], old_poly[1], old_poly[2], 0
+                old_poly[0], old_poly[1], old_poly[2], 0, p
             )
             assert (
                 sum_new_poly_at_0_1 == old_value
@@ -238,6 +238,7 @@ class Verifier(Interactor):
             ), "the poly at layer {} step {} should be of length {}, but got {}".format(
                 layer, step, degree, len(poly)
             )
+            old_poly = self.get_specific_polynomial(layer, step - 1)
             if layer == d - 1:
                 # sum_new_poly_at_0_1 = (
                 #     SU.cubic_evaluation(poly, 0, p) + SU.cubic_evaluation(poly, 1, p)
@@ -258,11 +259,11 @@ class Verifier(Interactor):
                 #     + SU.quadratic_evaluation(poly, 1, p)
                 # ) % p
                 sum_new_poly_at_0_1 = add(
-                    eval_commit_3_degree_poly(poly[0], poly[1], poly[2], 0),
-                    eval_commit_3_degree_poly(poly[0], poly[1], poly[2], 1),
+                    eval_commit_3_degree_poly(poly[0], poly[1], poly[2], 0, p),
+                    eval_commit_3_degree_poly(poly[0], poly[1], poly[2], 1, p),
                 )
                 old_value = eval_commit_3_degree_poly(
-                    old_poly[0], old_poly[1], old_poly[2], 0
+                    old_poly[0], old_poly[1], old_poly[2], r, p
                 )
             assert (
                 sum_new_poly_at_0_1 == old_value
@@ -396,7 +397,7 @@ class Verifier(Interactor):
             #     last_poly, a2_last_layer[-1], p
             # )
             old_claimed_value_of_fi = eval_commit_3_degree_poly(
-                last_poly[0], last_poly[1], last_poly[2], a2_last_layer[-1]
+                last_poly[0], last_poly[1], last_poly[2], a2_last_layer[-1], p
             )
         if TIME_INFO:
             old_claimed_value_end_time = time.time()

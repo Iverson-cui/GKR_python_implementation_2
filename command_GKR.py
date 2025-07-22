@@ -144,7 +144,6 @@ def execute(C):
             temp_lst_mult_layer = proof_of_product_step_1(
                 value_at_b, value_at_c, 0, 0, 0, G, B
             )
-            # TODO: prime or p?
             c = mpz_random(rand_state, int(prime))
             z = proof_of_product_step_2(
                 value_at_b, value_at_c, temp_lst_mult_layer[6:], 0, 0, 0, c
