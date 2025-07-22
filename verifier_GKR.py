@@ -430,7 +430,7 @@ class Verifier(Interactor):
         self.append_RV(new_random_vector)
         self.append_claimed_values_at_end_of_layer(
             # SU.polynomial_evaluation(poly, final_random_element_in_layer, p)
-            eval_commit_n_degree_poly(poly, final_random_element_in_layer)
+            eval_commit_n_degree_poly(poly[::-1], final_random_element_in_layer)
         )
 
         return new_random_vector
@@ -489,10 +489,9 @@ class Verifier(Interactor):
         last_claimed_value = self.get_claimed_value_at_end_of_layer(d - 1)
         # We can now evaluate the MLE at the random vector since we know the input value.
         actual_value_at_RV = SU.DP_eval_MLE(Wd, RV_d, k[d], p)
-        # TODO: Last layer logic needs to be fine tuned.
         commitment_of_actual_value_at_RV = commit(actual_value_at_RV, 0, G, B)
-        assert (
-            last_claimed_value == commitment_of_actual_value_at_RV
+        assert eq(
+            last_claimed_value, commitment_of_actual_value_at_RV
         ), "{} is not equal to {}".format(
             last_claimed_value, commitment_of_actual_value_at_RV
         )
