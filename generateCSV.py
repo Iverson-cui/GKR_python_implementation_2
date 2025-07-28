@@ -109,38 +109,59 @@ class CSVGroupGenerator:
                 - numbers_per_group (int): Number of integers per group (ignored if group_type is 'input')
                 - max_value (int or None): Maximum value before wrapping
                 - input_value (int, optional): For input mode only
+                - duplicate_mode (bool, optional): If True, duplicate each group
 
         Returns:
             list: A list of elements that form one CSV line
         """
         line_elements = []
         line_counter = 0  # Start each line from 0
+        duplicate_mode = config.get("duplicate_mode", False)
 
-        # For each group, we add: type, followed by integers
-        for _ in range(config["num_groups"]):
+        # Calculate effective number of groups (considering duplicates)
+        effective_groups = (
+            config["num_groups"] // 2 if duplicate_mode else config["num_groups"]
+        )
+
+        # For each unique group, we add: type, followed by integers
+        for _ in range(effective_groups):
             # Start with the group type
             group_data = [config["group_type"]]
 
             # Determine how many integers to add based on group type
             if config["group_type"] == "input":
-                # Input groups have only 1 integer
+                # Input groups have only 1 integer and use incrementing counter
                 integers_in_group = 1
-            else:
-                # Other groups use the specified numbers_per_group
-                integers_in_group = config["numbers_per_group"]
-
-            # Add the specified number of integers
-            for _ in range(integers_in_group):
                 # Apply wrapping if max_value is set
                 if config["max_value"] is not None:
                     current_value = line_counter % (config["max_value"] + 1)
                 else:
                     current_value = line_counter
-
                 group_data.append(current_value)
                 line_counter += 1
+            else:
+                # Other groups use the specified numbers_per_group
+                integers_in_group = config["numbers_per_group"]
 
-            line_elements.extend(group_data)
+                # Add the specified number of integers
+                for _ in range(integers_in_group):
+                    # Apply wrapping if max_value is set
+                    if config["max_value"] is not None:
+                        current_value = line_counter % (config["max_value"] + 1)
+                    else:
+                        current_value = line_counter
+
+                    group_data.append(current_value)
+                    line_counter += 1
+
+            # Add the group to line_elements
+            if duplicate_mode:
+                # Add the group twice
+                line_elements.extend(group_data)
+                line_elements.extend(group_data)
+            else:
+                # Add the group once
+                line_elements.extend(group_data)
 
         return line_elements
 
@@ -162,16 +183,19 @@ class CSVGroupGenerator:
 
                 writer.writerow(line_data)
                 # Determine display info based on group type
+                duplicate_info = (
+                    " (DUPLICATE MODE)" if config.get("duplicate_mode", False) else ""
+                )
                 if config["group_type"] == "input":
                     display_info = (
                         f"Line {line_num}: {config['num_groups']} groups (type: {config['group_type']}, "
-                        f"ints/group: 1, max: {config['max_value']}) -> "
+                        f"ints/group: 1, max: {config['max_value']}){duplicate_info} -> "
                         f"{','.join(map(str, line_data))}"
                     )
                 else:
                     display_info = (
                         f"Line {line_num}: {config['num_groups']} groups (type: {config['group_type']}, "
-                        f"ints/group: {config['numbers_per_group']}, max: {config['max_value']}) -> "
+                        f"ints/group: {config['numbers_per_group']}, max: {config['max_value']}){duplicate_info} -> "
                         f"{','.join(map(str, line_data))}"
                     )
 
@@ -257,6 +281,7 @@ def interactive_csv_generator():
     In gate mode, numbers increase from 0 and increment by 1. Each line the number starts from 0.
     Numbers can wrap around at a specified maximum value.
     In input mode, you specify one value that applies to all groups in the single line.
+    Duplicate mode: Each group appears twice consecutively in the line.
     """
     print("\n=== Interactive CSV Generator ===")
 
@@ -312,6 +337,21 @@ def interactive_csv_generator():
         # Create generator with user's parameters
         generator = CSVGroupGenerator(group_type, mode, numbers_per_group, max_value)
 
+        # Ask about duplicate mode
+        while True:
+            duplicate_input = (
+                input(
+                    "Enable duplicate mode? Each group will appear twice (y/n, default: n): "
+                )
+                .strip()
+                .lower()
+            )
+            if duplicate_input in ["y", "yes", "n", "no", ""]:
+                duplicate_mode = duplicate_input in ["y", "yes"]
+                break
+            else:
+                print("Please enter 'y' for yes or 'n' for no.")
+
         # Get number of lines
         while True:
             try:
@@ -334,8 +374,17 @@ def interactive_csv_generator():
             except ValueError:
                 print("Please enter a valid number.")
 
-        # Create line configurations with the same number of groups for each line
-        line_configurations = [groups_per_line] * num_lines
+        # Create line configurations with the same configuration for each line
+        line_configs = []
+        for _ in range(num_lines):
+            config = {
+                "num_groups": groups_per_line,
+                "group_type": group_type,
+                "numbers_per_group": numbers_per_group,
+                "max_value": max_value,
+                "duplicate_mode": duplicate_mode,
+            }
+            line_configs.append(config)
 
         # Get filename
         filename = input("Enter filename (default: 'output.csv'): ").strip()
@@ -344,9 +393,10 @@ def interactive_csv_generator():
         if not filename.endswith(".csv"):
             filename += ".csv"
 
-        # Generate the file
+        # Generate the file using the advanced method
+        generator_advanced = CSVGroupGenerator(mode=mode)
         print(f"\nGenerating {filename}...")
-        generator.generate_csv_file(filename, line_configurations)
+        generator_advanced.generate_csv_file_with_configs(filename, line_configs)
         print(f"File '{filename}' created successfully!")
 
     elif mode == "input":
@@ -393,30 +443,21 @@ def advanced_interactive_csv_generator():
     Advanced interactive function to create a custom CSV file with individual line configurations.
 
     Allows you to specify different configurations for each line:
-    - Group type (if 'input', each group will have only 1 integer regardless of numbers_per_group setting)
-    - Number of groups
-    - Numbers per group (ignored for 'input' type groups)
+    - Group type for each line (can mix different types like 'add', 'mul', 'input', etc.)
+    - Number of groups per line
+    - Numbers per group (ignored for 'input' type groups which always have 1)
     - Maximum value for wrapping
+    - Duplicate mode (duplicates each group in the line)
 
-    The increment logic applies to all group types:
+    The increment logic applies to all group types including 'input':
     - Numbers start from 0 for each line
     - Numbers increment by 1 within each line
     - If max_value is set, numbers wrap around (e.g., max_value=5 means 0,1,2,3,4,5,0,1,...)
+    - If duplicate mode is enabled, each group appears twice consecutively
+    - 'input' type groups now also use incrementing numbers instead of fixed values
     """
     print("\n=== Advanced Interactive CSV Generator ===")
     print("Configure each line individually with different parameters.")
-
-    # Get the mode from user
-    while True:
-        mode = (
-            input("Choose mode - 'gate' or 'input' (default: 'gate'): ").strip().lower()
-        )
-        if mode in ["gate", "input", ""]:
-            if mode == "":
-                mode = "gate"
-            break
-        else:
-            print("Please enter 'gate' or 'input'")
 
     # Get number of lines
     while True:
@@ -435,92 +476,93 @@ def advanced_interactive_csv_generator():
     for line_num in range(1, num_lines + 1):
         print(f"\n--- Configuring Line {line_num} ---")
 
-        if mode == "gate":
-            # Get group type for this line
-            group_type = input(
-                f"Enter group type for line {line_num} (default: 'type'): "
-            ).strip()
-            if not group_type:
-                group_type = "type"
+        # Get group type for this line
+        group_type = input(
+            f"Enter group type for line {line_num} (default: 'type'): "
+        ).strip()
+        if not group_type:
+            group_type = "type"
 
-            # Get number of groups for this line
+        # Get number of groups for this line
+        while True:
+            try:
+                num_groups = int(input(f"Number of groups in line {line_num}: "))
+                if num_groups > 0:
+                    break
+                else:
+                    print("Please enter a positive number.")
+            except ValueError:
+                print("Please enter a valid number.")
+
+        # Get number of integers per group for this line (only if not input type)
+        if group_type.lower() == "input":
+            numbers_per_group = 1  # Input groups always have 1 integer
+            print("Note: 'input' groups automatically have 1 integer per group")
+        else:
             while True:
                 try:
-                    num_groups = int(input(f"Number of groups in line {line_num}: "))
-                    if num_groups > 0:
+                    numbers_per_group = int(
+                        input(
+                            f"How many integers per group in line {line_num} (default: 2)? "
+                        )
+                    )
+                    if numbers_per_group > 0:
                         break
                     else:
                         print("Please enter a positive number.")
                 except ValueError:
-                    print("Please enter a valid number.")
-
-            # Get number of integers per group for this line (only if not input type)
-            if group_type.lower() == "input":
-                numbers_per_group = 1  # Input groups always have 1 integer
-                print("Note: 'input' groups automatically have 1 integer per group")
-            else:
-                while True:
-                    try:
-                        numbers_per_group = int(
-                            input(
-                                f"How many integers per group in line {line_num} (default: 2)? "
-                            )
-                        )
-                        if numbers_per_group > 0:
-                            break
-                        else:
-                            print("Please enter a positive number.")
-                    except ValueError:
-                        numbers_per_group = 2
-                        break
-
-            # Get maximum value for this line
-            while True:
-                max_value_input = input(
-                    f"Max value for integers in line {line_num} (press Enter for no limit): "
-                ).strip()
-                if max_value_input == "":
-                    max_value = None
+                    numbers_per_group = 2
                     break
-                try:
-                    max_value = int(max_value_input)
-                    if max_value >= 0:
-                        break
-                    else:
-                        print("Please enter a non-negative number.")
-                except ValueError:
-                    print("Please enter a valid number or press Enter for no limit.")
 
+        # Get maximum value for this line
+        while True:
+            max_value_input = input(
+                f"Max value for integers in line {line_num} (press Enter for no limit): "
+            ).strip()
+            if max_value_input == "":
+                max_value = None
+                break
+            try:
+                max_value = int(max_value_input)
+                if max_value >= 0:
+                    break
+                else:
+                    print("Please enter a non-negative number.")
+            except ValueError:
+                print("Please enter a valid number or press Enter for no limit.")
+
+        # Ask about duplicate mode
+        while True:
+            duplicate_input = (
+                input(
+                    f"Enable duplicate mode for line {line_num}? Each group will appear twice (y/n, default: n): "
+                )
+                .strip()
+                .lower()
+            )
+            if duplicate_input in ["y", "yes", "n", "no", ""]:
+                duplicate_mode = duplicate_input in ["y", "yes"]
+                break
+            else:
+                print("Please enter 'y' for yes or 'n' for no.")
+
+        # Handle input type configuration
+        if group_type.lower() == "input":
+            config = {
+                "num_groups": num_groups,
+                "group_type": "input",
+                "numbers_per_group": 1,
+                "max_value": max_value,
+                "duplicate_mode": duplicate_mode,
+            }
+        else:
             config = {
                 "num_groups": num_groups,
                 "group_type": group_type,
                 "numbers_per_group": numbers_per_group,
                 "max_value": max_value,
+                "duplicate_mode": duplicate_mode,
             }
-
-        elif mode == "input":
-            # Get number of groups for this line
-            while True:
-                try:
-                    num_groups = int(input(f"Number of groups in line {line_num}: "))
-                    if num_groups > 0:
-                        break
-                    else:
-                        print("Please enter a positive number.")
-                except ValueError:
-                    print("Please enter a valid number.")
-
-            # Get the value for all groups in this line
-            while True:
-                try:
-                    input_value = int(
-                        input(f"Enter the value for all groups in line {line_num}: ")
-                    )
-                    break
-                except ValueError:
-                    print("Please enter a valid integer.")
-
-            config = {"num_groups": num_groups, "input_value": input_value}
 
         line_configs.append(config)
         print(f"Line {line_num} configured: {config}")
@@ -533,7 +575,9 @@ def advanced_interactive_csv_generator():
         filename += ".csv"
 
     # Create generator and generate the file
-    generator = CSVGroupGenerator(mode=mode)
+    generator = CSVGroupGenerator(
+        mode="gate"
+    )  # Default mode, actual behavior determined by line configs
     print(f"\nGenerating {filename}...")
     generator.generate_csv_file_with_configs(filename, line_configs)
     print(f"File '{filename}' created successfully!")
