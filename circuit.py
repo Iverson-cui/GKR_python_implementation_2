@@ -335,6 +335,7 @@ class Circuit:
             #     fan_in = 16
             # else:
             #     fan_in = 2
+            assert len(info[1]) == self.fan_in[i], "Wrong fan in and csv file format"
             assert (
                 len(info[1]) == self.fan_in[i]
                 and 0 <= info[1][0] < 2 ** k[i + 1]
