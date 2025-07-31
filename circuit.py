@@ -55,7 +55,7 @@ class Circuit:
         self.d = d
         self.p = p
         # fan_in is hard coded for now.
-        self.fan_in = [4, 16, 2]
+        self.fan_in = [4, 32, 2]
 
     def deepcopy(self):
         C = Circuit(
