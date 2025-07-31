@@ -16,7 +16,7 @@ rand_state = random_state(1)
 # current_dir is the folder which contains the current python file.
 current_dir = os.path.dirname(os.path.abspath(__file__))
 # print("current_dir:", current_dir)
-data_dir = os.path.join(current_dir, "./test_circuit_55/2048_3dencap55.csv")
+data_dir = os.path.join(current_dir, "./test_circuit_55/4096_3dencap55.csv")
 # file_path = os.path.join(data_dir, "events_semantic.json")
 
 
@@ -280,7 +280,7 @@ def execute(C):
 
 # C = [circuit.createCircuit("circuitdata-{}.csv".format(i), 10007) for i in range(1, 5)]
 # Deep_C = circuit.createCircuit("deep_circuit-1.csv", 10007)
-test_circuit = circuit.createCircuit(data_dir, [11, 12, 17, 18], mpz(prime))
+test_circuit = circuit.createCircuit(data_dir, [12, 13, 18, 19], mpz(prime))
 execution_time = timeit.timeit(lambda: execute(test_circuit), number=3)
 print(
     "\033[33mExecution time for test_circuit: {}\033[0m seconds".format(

@@ -380,6 +380,6 @@ def proof_of_product_verification(X, Y, Z, alpha, beta, delta, z, c, G, B):
 # assert add(delta, multiply(Z, c)) == add(multiply(X, z[2]), multiply(B, z[4]))
 # print("Proof of product commitment is valid!")
 
-int_prime = int(prime)
-print(int_prime)
-print(type(int_prime))
+# int_prime = int(prime)
+# print(int_prime)
+# print(type(int_prime))
