@@ -4,3 +4,5 @@ example*.csv
 __pycache__/
 intvsmpz.py
 gmpy2test.py
+test_circuit_33/32768*
+test_circuit_55/32768*
